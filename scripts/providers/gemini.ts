@@ -97,11 +97,31 @@ export async function generateWithGemini(
       imageConfig: { imageSize: resolution },
     };
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents,
-      config: generateConfig as object,
-    });
+    const maxAttempts = 3;
+    let lastErr: unknown;
+    let response: any = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        response = await ai.models.generateContent({
+          model: MODEL,
+          contents,
+          config: generateConfig as object,
+        });
+        break;
+      } catch (err) {
+        lastErr = err;
+        // Small backoff for transient API/network errors
+        const delayMs = 500 * attempt;
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+
+    if (!response) {
+      throw new Error(
+        `Gemini generateContent failed after ${maxAttempts} attempts: ${(lastErr as Error)?.message || String(lastErr)}`
+      );
+    }
 
     let imageData: Buffer | null = null;
     let mimeType = "image/png";
@@ -109,10 +129,34 @@ export async function generateWithGemini(
 
     const candidate = response.candidates?.[0];
     if (!candidate?.content?.parts) {
-      throw new Error("Gemini returned no content parts");
+      // Some transient responses can be empty; retry a couple times before failing.
+      // Re-run the full request to avoid partial/invalid payloads.
+      let retried = false;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        retried = true;
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+        const r2 = await ai.models.generateContent({
+          model: MODEL,
+          contents,
+          config: generateConfig as object,
+        });
+        const c2 = r2.candidates?.[0];
+        if (c2?.content?.parts) {
+          response = r2;
+          break;
+        }
+      }
+
+      const cFinal = response.candidates?.[0];
+      if (!cFinal?.content?.parts) {
+        throw new Error(
+          "Gemini returned no content parts (after retry). Try again; this is often transient."
+        );
+      }
     }
 
-    for (const part of candidate.content.parts) {
+    const finalCandidate = response.candidates?.[0];
+    for (const part of finalCandidate.content.parts) {
       if (part.text) {
         revisedPrompt = part.text;
       } else if (part.inlineData) {

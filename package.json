@@ -1,6 +1,6 @@
 {
   "name": "stella-selfie",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini and fal providers, multi-reference avatar blending.",
   "keywords": [
     "openclaw",
@@ -24,7 +24,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "stella": "ts-node scripts/stella.ts"
+    "smoke": "ts-node scripts/smoke.ts --outdir ./out"
   },
   "dependencies": {
     "@fal-ai/client": "^1.2.0",

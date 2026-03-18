@@ -91,7 +91,7 @@ You can also copy the same block from `templates/SOUL.fragment.md` (which includ
 Once configured, use natural language with your OpenClaw agent:
 
 - "Send me a selfie wearing a red dress"
-- "发张照片，在咖啡馆里"
+- "Send a photo in a cozy cafe"
 - "Show me what you look like at the beach"
 - "Send a pic at a rooftop party, 2K resolution"
 
@@ -103,26 +103,8 @@ Test the script directly without going through OpenClaw. Since OpenClaw normally
 # Install dependencies
 npm install
 
-# Option 1: source .env.local then run (recommended)
-# Tip: start from .env.example and fill in your real keys.
-source .env.local && npx ts-node scripts/stella.ts \
-  --prompt "make a pic of this person, but wearing a red dress. the person is taking a mirror selfie" \
-  --target "@yourusername" \
-  --channel "telegram" \
-  --caption "Here's a selfie!" \
-  --resolution 1K
-
-# Option 2: inline env vars
-GEMINI_API_KEY=xxx OPENCLAW_GATEWAY_TOKEN=yyy npx ts-node scripts/stella.ts \
-  --prompt "a close-up selfie at a cozy cafe" \
-  --target "@yourusername" \
-  --channel "telegram"
-
-# Run with fal provider
-source .env.local && Provider=fal npx ts-node scripts/stella.ts \
-  --prompt "a close-up selfie taken by herself at a cozy cafe" \
-  --target "#general" \
-  --channel "discord"
+# Smoke test: real API calls, saves images to ./out
+npm run smoke
 ```
 
 > **Note**: The project-root `.env.local` file is only for local development. When running as an OpenClaw skill, secrets should be configured via `~/.openclaw/openclaw.json` (or your process environment), and OpenClaw injects them for the agent run.

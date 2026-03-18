@@ -92,8 +92,8 @@ When users ask for pictures (e.g. "send a pic", "send a selfie", "发张照片",
 
 - “发张自拍，穿红裙子”
 - “发张照片，在咖啡馆里”
-- “Show me what you look like at the beach”
-- “Send a pic at a rooftop party, 2K resolution”
+- “让我看看你在海滩上的样子”
+- “发张屋顶派对的照片，2K 分辨率”
 
 ## 直接脚本测试（不走 OpenClaw）
 
@@ -103,26 +103,8 @@ When users ask for pictures (e.g. "send a pic", "send a selfie", "发张照片",
 # 安装依赖
 npm install
 
-# 方式 1：source .env.local 再运行（推荐）
-# 提示：可以从 .env.example 拷贝一份开始填写真实 key。
-source .env.local && npx ts-node scripts/stella.ts \
-  --prompt "make a pic of this person, but wearing a red dress. the person is taking a mirror selfie" \
-  --target "@yourusername" \
-  --channel "telegram" \
-  --caption "Here's a selfie!" \
-  --resolution 1K
-
-# 方式 2：命令行内联环境变量
-GEMINI_API_KEY=xxx OPENCLAW_GATEWAY_TOKEN=yyy npx ts-node scripts/stella.ts \
-  --prompt "a close-up selfie at a cozy cafe" \
-  --target "@yourusername" \
-  --channel "telegram"
-
-# 使用 fal provider
-source .env.local && Provider=fal npx ts-node scripts/stella.ts \
-  --prompt "a close-up selfie taken by herself at a cozy cafe" \
-  --target "#general" \
-  --channel "discord"
+# Smoke 测试：真实调用 API，并把图片保存到 ./out
+npm run smoke
 ```
 
 > **注意**：项目根目录的 `.env.local` 仅用于本地开发/脚本测试。作为 OpenClaw skill 运行时，建议通过 `~/.openclaw/openclaw.json`（或进程环境变量）提供密钥，OpenClaw 会在每次 agent run 期间注入。

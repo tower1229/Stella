@@ -80,7 +80,7 @@ Determine from the user's message:
 Run the Stella script:
 
 ```bash
-npx ts-node {baseDir}/scripts/stella.ts \
+npx ts-node {baseDir}/scripts/skill.ts \
   --prompt "<ASSEMBLED_PROMPT>" \
   --target "<TARGET_CHANNEL>" \
   --channel "<CHANNEL_PROVIDER>" \
