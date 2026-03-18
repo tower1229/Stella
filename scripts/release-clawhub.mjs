@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+function quoteWin(arg) {
+  // Minimal, practical quoting for cmd.exe parsing.
+  // Wrap in double quotes if it contains spaces/special chars, and escape internal quotes.
+  const s = String(arg);
+  const escaped = s.replace(/"/g, '\\"');
+  return /[ \t&()^<>|]/.test(escaped) ? `"${escaped}"` : escaped;
+}
+
 function usage(exitCode = 0) {
   const msg = `
 Usage:
@@ -48,32 +56,47 @@ function parseArgs(argv) {
 }
 
 function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, {
-    stdio: "inherit",
-    cwd: ROOT_DIR,
-    shell: process.platform === "win32",
-    ...opts,
-  });
+  const isWin = process.platform === "win32";
+  const r = isWin
+    ? spawnSync([cmd, ...args].map(quoteWin).join(" "), {
+        stdio: "inherit",
+        cwd: ROOT_DIR,
+        shell: true,
+        ...opts,
+      })
+    : spawnSync(cmd, args, {
+        stdio: "inherit",
+        cwd: ROOT_DIR,
+        shell: false,
+        ...opts,
+      });
   if (r.error) throw r.error;
   if (typeof r.status === "number" && r.status !== 0) process.exit(r.status);
 }
 
 function canRun(cmd) {
-  const r = spawnSync(cmd, ["--help"], {
-    stdio: "ignore",
-    cwd: ROOT_DIR,
-    shell: process.platform === "win32",
-  });
+  const isWin = process.platform === "win32";
+  const r = isWin
+    ? spawnSync(`${cmd} --help`, { stdio: "ignore", cwd: ROOT_DIR, shell: true })
+    : spawnSync(cmd, ["--help"], { stdio: "ignore", cwd: ROOT_DIR, shell: false });
   return !r.error && r.status === 0;
 }
 
 function runCapture(cmd, args) {
-  const r = spawnSync(cmd, args, {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    cwd: ROOT_DIR,
-    shell: process.platform === "win32",
-  });
+  const isWin = process.platform === "win32";
+  const r = isWin
+    ? spawnSync([cmd, ...args].map(quoteWin).join(" "), {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd: ROOT_DIR,
+        shell: true,
+      })
+    : spawnSync(cmd, args, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd: ROOT_DIR,
+        shell: false,
+      });
   if (r.error) return { ok: false, stdout: "", stderr: String(r.error) };
   if (r.status !== 0) return { ok: false, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
   return { ok: true, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
@@ -146,7 +169,7 @@ const publishArgs = [
   "--tags",
   String(tag),
   "--changelog",
-  String(changelog),
+  String(changelog).replace(/\r?\n/g, "\\n"),
 ];
 
 if (canRun("clawhub")) {
