@@ -94,7 +94,7 @@ async function main(): Promise<void> {
 
   const envMaxRefs = process.env.AvatarMaxRefs ? parseInt(process.env.AvatarMaxRefs, 10) : null;
   const avatarMaxRefs =
-    envMaxRefs && !isNaN(envMaxRefs) ? envMaxRefs : identity.avatarMaxRefs;
+    envMaxRefs && !isNaN(envMaxRefs) && envMaxRefs > 0 ? envMaxRefs : 3;
 
   const referenceImages = selectAvatars({
     avatar: identity.avatar,
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     // fal provider: reference images must be HTTP/HTTPS URLs
     const referenceImageUrls =
       identity.avatarsURLs.length > 0
-        ? identity.avatarsURLs
+        ? identity.avatarsURLs.slice(0, avatarMaxRefs)
         : referenceImages.filter((p) => p.startsWith("http://") || p.startsWith("https://"));
 
     const results = await generateWithFal({

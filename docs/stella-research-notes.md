@@ -37,7 +37,7 @@
 - 参考图来源在仓库本地。
 - 优先使用 `IDENTITY.md` 的 `Avatar`。
 - 扩展 `IDENTITY.md`：新增 `AvatarsDir`，用于多图参考融合。
-- `AvatarMaxRefs` 为可选配置，默认值 `4`。
+- `AvatarMaxRefs` 作为 skill env 配置项（默认值 `3`），用于限制最多融合多少张参考图。
 - 新增 skill env：`AvatarBlendEnabled`（默认 `true`）。
 - 资产责任边界：用户负责把 `avatars/` 部署到远端 OpenClaw workspace 并自行维护更新，skill 不负责资产同步。
 
@@ -98,7 +98,6 @@
 Name: Stella
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 4  # 可选，默认 4
 ```
 
 ### 3.2 openclaw.json skill env（建议）

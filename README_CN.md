@@ -57,13 +57,11 @@ clawhub install stella-selfie
 ```markdown
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 3
 AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`：主参考图路径（相对 workspace 根目录）
 - `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）
-- `AvatarMaxRefs`：最大参考图数量（可选，默认 3）
 - `AvatarsURLs`：参考图的公开 URL（仅 `Provider=fal` 必需；fal 不支持本地路径）
 
 ### 3. 参考图片（`avatars/` 目录）
@@ -73,7 +71,7 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 - 支持格式：`jpg` / `jpeg` / `png` / `webp`
 - 照片应为同一角色
 - 不同风格、场景、表情更有助于一致性
-- 按创建时间选择（最新优先），最多选 `AvatarMaxRefs` 张
+- 按创建时间选择（最新优先），最多选 `AvatarMaxRefs` 张（该选项在 skill env 中配置）
 
 ### 4. SOUL.md
 

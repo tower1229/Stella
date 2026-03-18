@@ -57,13 +57,11 @@ Add the following to `~/.openclaw/workspace/IDENTITY.md`:
 ```markdown
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 3
 AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`: Path to your primary reference image (relative to workspace root)
 - `AvatarsDir`: Directory of additional reference photos (same character, different styles/scenes/outfits)
-- `AvatarMaxRefs`: Max reference images to blend (optional, default 3)
 - `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
 ### 3. Reference Images (`avatars/` directory)
@@ -73,7 +71,7 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 - Supported formats: `jpg`, `jpeg`, `png`, `webp`
 - All photos should be of the same character
 - Different styles, scenes, outfits, and expressions work best for consistency
-- Images are selected by creation time (newest first), up to `AvatarMaxRefs`
+- Images are selected by creation time (newest first), up to `AvatarMaxRefs` (configured via skill env)
 
 ### 4. SOUL.md
 

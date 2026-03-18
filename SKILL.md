@@ -139,13 +139,11 @@ Add the following fields to `~/.openclaw/workspace/IDENTITY.md`:
 ```markdown
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 3
 AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`: Path to your primary reference image (relative to workspace root)
 - `AvatarsDir`: Directory containing multiple reference photos of the same character (different styles, scenes, outfits)
-- `AvatarMaxRefs`: Maximum reference images to blend (optional, default 3)
 - `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
 ### Required: avatars/ Directory
