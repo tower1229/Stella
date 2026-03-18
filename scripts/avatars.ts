@@ -8,6 +8,11 @@ interface FileWithTime {
   time: number;
 }
 
+function toPosixPath(p: string): string {
+  // Normalize for consistent downstream handling across platforms (tests, logs, consumers)
+  return p.replace(/\\/g, "/");
+}
+
 /**
  * Get the best available creation/modification time for a file.
  * Priority: birthtime > mtime > ctime
@@ -65,7 +70,7 @@ export function selectAvatars(options: {
       const real = safeRealpath(avatar);
       if (real) {
         seenRealpaths.add(real);
-        result.push(avatar);
+        result.push(toPosixPath(avatar));
       }
     } else {
       console.warn(`[stella] Warning: Avatar not found: ${avatar}`);
@@ -113,7 +118,7 @@ export function selectAvatars(options: {
         if (!real || seenRealpaths.has(real)) continue;
 
         seenRealpaths.add(real);
-        result.push(candidate.filePath);
+        result.push(toPosixPath(candidate.filePath));
       }
     }
   }
