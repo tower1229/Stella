@@ -24,7 +24,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "ts-node scripts/smoke.ts --outdir ./out"
+    "smoke": "ts-node scripts/smoke.ts --outdir ./out",
+    "release:clawhub": "node ./scripts/release-clawhub.mjs"
   },
   "dependencies": {
     "@fal-ai/client": "^1.2.0",
