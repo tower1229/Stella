@@ -37,14 +37,16 @@ function getApiKey(provided?: string): string {
 
 /**
  * Generate images using fal.ai xAI Grok Imagine.
- * - No reference images: uses text-to-image endpoint
+ * - No reference images: uses text-to-image endpoint (supports aspect_ratio)
  * - With reference images: uses image editing endpoint (image_urls array)
+ *   NOTE: fal only accepts HTTP/HTTPS URLs for reference images.
+ *   The edit endpoint does not support resolution/aspect_ratio parameters.
  * No automatic fallback — errors are thrown directly.
  */
 export async function generateWithFal(
   options: FalGenerateOptions
 ): Promise<FalResult[]> {
-  const { prompt, referenceImageUrls, resolution, count, apiKey } = options;
+  const { prompt, referenceImageUrls, count, apiKey } = options;
   const key = getApiKey(apiKey);
 
   const hasRefs = referenceImageUrls.length > 0;
@@ -63,7 +65,11 @@ export async function generateWithFal(
   };
 
   if (hasRefs) {
+    // Edit endpoint: pass reference URLs, no resolution parameter supported
     input.image_urls = referenceImageUrls;
+  } else {
+    // Text-to-image endpoint: aspect_ratio is the only supported size control
+    input.aspect_ratio = "1:1";
   }
 
   const result = await fal.subscribe(endpoint, { input });

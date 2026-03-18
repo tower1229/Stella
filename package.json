@@ -28,8 +28,7 @@
   },
   "dependencies": {
     "@fal-ai/client": "^1.2.0",
-    "@google/genai": "^0.7.0",
-    "dotenv": "^16.0.0"
+    "@google/genai": "^0.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

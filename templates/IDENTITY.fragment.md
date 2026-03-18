@@ -11,5 +11,11 @@ Avatar: ./assets/avatar-main.png
 # Images are selected by creation time (newest first), up to AvatarMaxRefs
 AvatarsDir: ./avatars
 
-# Maximum number of reference images to blend (optional, default: 4)
-AvatarMaxRefs: 4
+# Maximum number of reference images to blend (optional, default: 3)
+# fal provider supports up to 3 reference images
+AvatarMaxRefs: 3
+
+# Public URLs of reference images — required for Provider=fal
+# (fal's API only accepts HTTP/HTTPS URLs, not local file paths)
+# Comma-separated list, up to AvatarMaxRefs entries
+AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg, https://cdn.example.com/ref3.jpg

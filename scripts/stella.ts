@@ -19,15 +19,11 @@
  *   OPENCLAW_GATEWAY_TOKEN  - Required for HTTP fallback
  *   Provider                - gemini (default) | fal
  *   AvatarBlendEnabled      - true (default) | false
- *   AvatarMaxRefs           - Override for max reference images (default: from IDENTITY.md or 4)
+ *   AvatarMaxRefs           - Override for max reference images (default: from IDENTITY.md or 3)
  */
 
 import * as path from "path";
 import * as os from "os";
-import * as dotenv from "dotenv";
-
-// Load .env.local if present (for local development)
-dotenv.config({ path: path.join(__dirname, "..", ".env.local") });
 
 import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
@@ -191,16 +187,21 @@ async function main(): Promise<void> {
       console.log(`[stella] Sent to ${args.channel}/${args.target}`);
     }
   } else {
-    // fal provider: reference images must be URLs, not local paths
-    // For fal, we only pass URLs — local files are not supported by fal's image_urls param
-    const referenceImageUrls = referenceImages.filter((p) =>
-      p.startsWith("http://") || p.startsWith("https://")
-    );
+    // fal provider: reference images must be HTTP/HTTPS URLs
+    // Priority: AvatarsURLs from IDENTITY.md > local paths that happen to be URLs
+    let referenceImageUrls: string[] = [];
+    if (identity.avatarsURLs.length > 0) {
+      referenceImageUrls = identity.avatarsURLs;
+    } else {
+      referenceImageUrls = referenceImages.filter(
+        (p) => p.startsWith("http://") || p.startsWith("https://")
+      );
+    }
 
     if (referenceImages.length > 0 && referenceImageUrls.length === 0) {
       console.warn(
-        "[stella] Warning: fal provider requires image URLs, but only local paths were found. " +
-          "Running in text-to-image mode. Host your reference images online to use image editing."
+        "[stella] Warning: fal provider requires image URLs. " +
+          "Local paths are not supported. Add AvatarsURLs to IDENTITY.md to enable image editing."
       );
     }
 

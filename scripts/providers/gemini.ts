@@ -135,9 +135,11 @@ export async function generateWithGemini(
     }
 
     const ext = mimeType.split("/")[1] || "png";
+    // Use process.hrtime for sub-millisecond uniqueness when count > 1
+    const [, ns] = process.hrtime();
     const outputPath = path.join(
       tmpDir,
-      `stella-${Date.now()}-${i}.${ext}`
+      `stella-${Date.now()}-${ns}-${i}.${ext}`
     );
     fs.writeFileSync(outputPath, imageData);
 

@@ -85,7 +85,6 @@ npx ts-node {baseDir}/scripts/stella.ts \
   --target "<TARGET_CHANNEL>" \
   --channel "<CHANNEL_PROVIDER>" \
   --caption "<CAPTION_TEXT>" \
-  --mode "<mirror|direct>" \
   --resolution "<1K|2K|4K>" \
   --count <NUMBER>
 ```
@@ -125,7 +124,9 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 |--------|---------|-------------|
 | `Provider` | `gemini` | Image provider: `gemini` or `fal` |
 | `AvatarBlendEnabled` | `true` | Enable multi-reference avatar blending |
-| `AvatarMaxRefs` | `4` | Maximum number of reference images to blend |
+| `AvatarMaxRefs` | `3` | Maximum number of reference images to blend |
+
+> **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
 ## User Configuration
 
@@ -138,12 +139,14 @@ Add the following fields to `~/.openclaw/workspace/IDENTITY.md`:
 ```markdown
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 4
+AvatarMaxRefs: 3
+AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`: Path to your primary reference image (relative to workspace root)
 - `AvatarsDir`: Directory containing multiple reference photos of the same character (different styles, scenes, outfits)
-- `AvatarMaxRefs`: Maximum reference images to blend (optional, default 4)
+- `AvatarMaxRefs`: Maximum reference images to blend (optional, default 3)
+- `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
 ### Required: avatars/ Directory
 

@@ -6,10 +6,11 @@ export interface IdentityConfig {
   avatar: string | null;
   avatarsDir: string | null;
   avatarMaxRefs: number;
+  avatarsURLs: string[];
 }
 
 const DEFAULT_WORKSPACE = path.join(os.homedir(), ".openclaw", "workspace");
-const DEFAULT_AVATAR_MAX_REFS = 4;
+const DEFAULT_AVATAR_MAX_REFS = 3;
 
 /**
  * Resolve a path from IDENTITY.md relative to the workspace root.
@@ -51,6 +52,7 @@ export function parseIdentity(
   let avatar: string | null = null;
   let avatarsDir: string | null = null;
   let avatarMaxRefs: number = DEFAULT_AVATAR_MAX_REFS;
+  let avatarsURLsRaw: string[] = [];
 
   for (const line of lines) {
     const parsed = parseLine(line.trim());
@@ -67,8 +69,16 @@ export function parseIdentity(
       if (!isNaN(num) && num > 0) {
         avatarMaxRefs = num;
       }
+    } else if (key === "AvatarsURLs") {
+      avatarsURLsRaw = value
+        .split(",")
+        .map((u) => u.trim())
+        .filter((u) => u.startsWith("http://") || u.startsWith("https://"));
     }
   }
 
-  return { avatar, avatarsDir, avatarMaxRefs };
+  // Respect AvatarMaxRefs limit for URL list as well
+  const avatarsURLs = avatarsURLsRaw.slice(0, avatarMaxRefs);
+
+  return { avatar, avatarsDir, avatarMaxRefs, avatarsURLs };
 }

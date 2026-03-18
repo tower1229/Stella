@@ -35,7 +35,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
         "env": {
           "Provider": "gemini",
           "AvatarBlendEnabled": "true",
-          "AvatarMaxRefs": "4"
+          "AvatarMaxRefs": "3"
         }
       }
     }
@@ -43,11 +43,13 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 }
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `Provider` | `gemini` | Image provider: `gemini` or `fal` |
-| `AvatarBlendEnabled` | `true` | Enable multi-reference avatar blending |
-| `AvatarMaxRefs` | `4` | Maximum number of reference images to blend |
+| Option               | Default  | Description                                 |
+| -------------------- | -------- | ------------------------------------------- |
+| `Provider`           | `gemini` | Image provider: `gemini` or `fal`           |
+| `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending      |
+| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
+
+> **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
 ### 3. IDENTITY.md
 
@@ -56,12 +58,14 @@ Add the following to `~/.openclaw/workspace/IDENTITY.md` (see `templates/IDENTIT
 ```markdown
 Avatar: ./assets/avatar-main.png
 AvatarsDir: ./avatars
-AvatarMaxRefs: 4
+AvatarMaxRefs: 3
+AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`: Path to your primary reference image (relative to workspace root)
 - `AvatarsDir`: Directory of additional reference photos (same character, different styles/scenes/outfits)
-- `AvatarMaxRefs`: Max reference images to blend (optional, default 4)
+- `AvatarMaxRefs`: Max reference images to blend (optional, default 3)
+- `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
 ### 4. Reference Images (`avatars/` directory)
 
@@ -87,26 +91,34 @@ Once configured, use natural language with your OpenClaw agent:
 
 ## Direct Script Testing
 
-Test the script directly without going through OpenClaw:
+Test the script directly without going through OpenClaw. Since OpenClaw normally injects environment variables at runtime, you need to load them manually for local testing.
 
 ```bash
 # Install dependencies
 npm install
 
-# Run with Gemini (default)
-npx ts-node scripts/stella.ts \
+# Option 1: source .env.local then run (recommended)
+source .env.local && npx ts-node scripts/stella.ts \
   --prompt "make a pic of this person, but wearing a red dress. the person is taking a mirror selfie" \
   --target "@yourusername" \
   --channel "telegram" \
   --caption "Here's a selfie!" \
   --resolution 1K
 
+# Option 2: inline env vars
+GEMINI_API_KEY=xxx OPENCLAW_GATEWAY_TOKEN=yyy npx ts-node scripts/stella.ts \
+  --prompt "a close-up selfie at a cozy cafe" \
+  --target "@yourusername" \
+  --channel "telegram"
+
 # Run with fal provider
-Provider=fal npx ts-node scripts/stella.ts \
+source .env.local && Provider=fal npx ts-node scripts/stella.ts \
   --prompt "a close-up selfie taken by herself at a cozy cafe" \
   --target "#general" \
   --channel "discord"
 ```
+
+> **Note**: The `.env.local` file is only for local development. When running as an OpenClaw skill, environment variables are injected automatically by OpenClaw via `openclaw.json`.
 
 ## Unit Tests
 
@@ -141,8 +153,3 @@ Stella/
     ├── stella-research-notes.md
     └── clawhub-publish-checklist.md
 ```
-
-## Docs
-
-- 调研结论（v0）：`docs/stella-research-notes.md`
-- ClawHub 发布检查清单（v0）：`docs/clawhub-publish-checklist.md`

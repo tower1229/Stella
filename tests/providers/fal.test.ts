@@ -122,6 +122,42 @@ describe("generateWithFal", () => {
     expect(input.output_format).toBe("jpeg");
   });
 
+  it("passes aspect_ratio 1:1 for text-to-image endpoint", async () => {
+    mockSubscribe.mockResolvedValue(
+      makeFalResponse(["https://example.com/img.jpg"])
+    );
+
+    const { generateWithFal } = await getModule();
+    await generateWithFal({
+      prompt: "test",
+      referenceImageUrls: [],
+      resolution: "1K",
+      count: 1,
+    });
+
+    const input = mockSubscribe.mock.calls[0][1].input;
+    expect(input.aspect_ratio).toBe("1:1");
+    expect(input.image_size).toBeUndefined();
+  });
+
+  it("does not pass resolution parameters for image editing endpoint", async () => {
+    mockSubscribe.mockResolvedValue(
+      makeFalResponse(["https://example.com/edited.jpg"])
+    );
+
+    const { generateWithFal } = await getModule();
+    await generateWithFal({
+      prompt: "wearing a red dress",
+      referenceImageUrls: ["https://example.com/ref1.jpg"],
+      resolution: "2K",
+      count: 1,
+    });
+
+    const input = mockSubscribe.mock.calls[0][1].input;
+    expect(input.image_size).toBeUndefined();
+    expect(input.aspect_ratio).toBeUndefined();
+  });
+
   it("returns array of results with imageUrl", async () => {
     mockSubscribe.mockResolvedValue(
       makeFalResponse(
