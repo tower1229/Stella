@@ -1,4 +1,4 @@
-# Stella
+# Stella — [中文说明](README_CN.md)
 
 Generate persona-consistent selfie images and send them to any OpenClaw channel. Supports Google Gemini and fal (xAI Grok Imagine) providers with multi-reference avatar blending.
 
@@ -12,9 +12,9 @@ After installation, complete the configuration steps below before using the skil
 
 ## Configuration
 
-### 1. API Keys
+### 1. OpenClaw `openclaw.json`
 
-Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.stella-selfie`.
+Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.stella-selfie.env` (secrets + options in one place).
 
 ```json5
 {
@@ -22,13 +22,17 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
     entries: {
       "stella-selfie": {
         enabled: true,
-        // Primary key for this skill (matches SKILL.md metadata.openclaw.primaryEnv)
-        apiKey: { source: "env", provider: "default", id: "GEMINI_API_KEY" },
-        // Other required secrets for sending and optional providers
         env: {
+          // Required when Provider=gemini (default)
+          GEMINI_API_KEY: "your_gemini_api_key",
           OPENCLAW_GATEWAY_TOKEN: "your_openclaw_gateway_token",
           // Only required when Provider=fal
-          FAL_KEY: "your_fal_api_key"
+          FAL_KEY: "your_fal_api_key",
+
+          // Options
+          Provider: "gemini",
+          AvatarBlendEnabled: "true",
+          AvatarMaxRefs: "3"
         }
       }
     }
@@ -36,28 +40,7 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
 }
 ```
 
-> **Sandbox note**: if you run OpenClaw in a sandbox (Docker), host `skills.entries.*.env/apiKey` injection does not automatically apply inside the container. Configure sandbox envs under `agents.defaults.sandbox.docker.env` (or per-agent) as well.
-
-### 2. Skill Environment Options
-
-Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.env`:
-
-```json5
-{
-  "skills": {
-    "entries": {
-      "stella-selfie": {
-        "enabled": true,
-        "env": {
-          "Provider": "gemini",
-          "AvatarBlendEnabled": "true",
-          "AvatarMaxRefs": "3"
-        }
-      }
-    }
-  }
-}
-```
+> **Sandbox note**: if you run OpenClaw in a sandbox (Docker), host `skills.entries.*.env` injection does not automatically apply inside the container. Configure sandbox envs under `agents.defaults.sandbox.docker.env` (or per-agent) as well.
 
 | Option               | Default  | Description                                 |
 | -------------------- | -------- | ------------------------------------------- |
@@ -67,7 +50,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
-### 3. IDENTITY.md
+### 2. IDENTITY.md
 
 Add the following to `~/.openclaw/workspace/IDENTITY.md` (see `templates/IDENTITY.fragment.md` for the full snippet):
 
@@ -83,7 +66,7 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 - `AvatarMaxRefs`: Max reference images to blend (optional, default 3)
 - `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
-### 4. Reference Images (`avatars/` directory)
+### 3. Reference Images (`avatars/` directory)
 
 Place reference photos in `~/.openclaw/workspace/avatars/`:
 
@@ -92,9 +75,16 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 - Different styles, scenes, outfits, and expressions work best for consistency
 - Images are selected by creation time (newest first), up to `AvatarMaxRefs`
 
-### 5. SOUL.md
+### 4. SOUL.md
 
-Add the Stella capability block to `~/.openclaw/workspace/SOUL.md`. Copy the **Minimal (recommended)** block from `templates/SOUL.fragment.md` (the rest is optional tuning).
+Add the Stella capability block to `~/.openclaw/workspace/SOUL.md` (copy/paste):
+
+```markdown
+You have a physical appearance and can take selfies/photos.
+When users ask for pictures (e.g. "send a pic", "send a selfie", "发张照片", "发自拍"), use the `stella-selfie` skill to generate and send an image.
+```
+
+You can also copy the same block from `templates/SOUL.fragment.md` (which includes optional advanced tuning).
 
 ## Usage
 
