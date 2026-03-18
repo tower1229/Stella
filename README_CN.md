@@ -77,14 +77,7 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 
 ### 4. SOUL.md
 
-把 Stella 能力块加入 `~/.openclaw/workspace/SOUL.md`（可直接复制粘贴）：
-
-```markdown
-You have a physical appearance and can take selfies/photos.
-When users ask for pictures (e.g. "send a pic", "send a selfie", "发张照片", "发自拍"), use the `stella-selfie` skill to generate and send an image.
-```
-
-你也可以从 `templates/SOUL.fragment.md` 复制同样的块（模板里还包含可选的高级调参）。
+把 `templates/SOUL.fragment.md` 里的完整 Stella 能力块复制粘贴到 `~/.openclaw/workspace/SOUL.md` 中即可。
 
 ## 用法
 

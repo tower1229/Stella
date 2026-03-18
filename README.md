@@ -77,14 +77,7 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 
 ### 4. SOUL.md
 
-Add the Stella capability block to `~/.openclaw/workspace/SOUL.md` (copy/paste):
-
-```markdown
-You have a physical appearance and can take selfies/photos.
-When users ask for pictures (e.g. "send a pic", "send a selfie", "发张照片", "发自拍"), use the `stella-selfie` skill to generate and send an image.
-```
-
-You can also copy the same block from `templates/SOUL.fragment.md` (which includes optional advanced tuning).
+Copy/paste the full Stella capability block from `templates/SOUL.fragment.md` into your `~/.openclaw/workspace/SOUL.md`.
 
 ## Usage
 
