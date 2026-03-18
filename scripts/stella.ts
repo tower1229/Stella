@@ -13,10 +13,10 @@
  *     [--resolution <1K|2K|4K>] \
  *     [--count <number>]
  *
- * Environment variables (from .env.local or skill env):
+ * Environment variables (from process env; OpenClaw injects per-run via openclaw.json):
  *   GEMINI_API_KEY          - Required when Provider=gemini
  *   FAL_KEY                 - Required when Provider=fal
- *   OPENCLAW_GATEWAY_TOKEN  - Required for HTTP fallback
+ *   OPENCLAW_GATEWAY_TOKEN  - Required for sending via OpenClaw Gateway / HTTP fallback
  *   Provider                - gemini (default) | fal
  *   AvatarBlendEnabled      - true (default) | false
  *   AvatarMaxRefs           - Override for max reference images (default: from IDENTITY.md or 3)

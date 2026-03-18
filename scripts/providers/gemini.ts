@@ -25,7 +25,7 @@ function getApiKey(provided?: string): string {
   const key = provided || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Configure it in .env.local or pass --api-key."
+      "GEMINI_API_KEY is not set. Set it in your environment (e.g. OpenClaw skills.entries.*.env/apiKey) or for local testing use .env.local / --api-key."
     );
   }
   return key;

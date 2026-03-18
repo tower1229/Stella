@@ -29,7 +29,7 @@ function getApiKey(provided?: string): string {
   const key = provided || process.env.FAL_KEY;
   if (!key) {
     throw new Error(
-      "FAL_KEY is not set. Configure it in .env.local or pass --api-key."
+      "FAL_KEY is not set. Set it in your environment (e.g. OpenClaw skills.entries.*.env) or for local testing use .env.local / --api-key."
     );
   }
   return key;

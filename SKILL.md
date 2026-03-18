@@ -6,7 +6,7 @@ metadata:
   openclaw:
     requires:
       env:
-        - GEMINI_API_KEY
+        - OPENCLAW_GATEWAY_TOKEN
       bins:
         - npx
     primaryEnv: GEMINI_API_KEY
@@ -114,7 +114,7 @@ After the script completes, confirm to the user:
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Required (if Provider=gemini) | Google Gemini API key |
 | `FAL_KEY` | Required (if Provider=fal) | fal.ai API key |
-| `OPENCLAW_GATEWAY_TOKEN` | Required | OpenClaw gateway auth token |
+| `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
 
 ## Skill Environment Options
 

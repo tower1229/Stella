@@ -14,19 +14,35 @@ After installation, complete the configuration steps below before using the skil
 
 ### 1. API Keys
 
-Add to `~/.openclaw/.env.local` (or your OpenClaw environment config):
+Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.stella-selfie`.
 
-```bash
-GEMINI_API_KEY=your_gemini_api_key       # Required for Provider=gemini (default)
-FAL_KEY=your_fal_api_key                 # Required for Provider=fal
-OPENCLAW_GATEWAY_TOKEN=your_token        # Required for HTTP fallback sending
+```json5
+{
+  skills: {
+    entries: {
+      "stella-selfie": {
+        enabled: true,
+        // Primary key for this skill (matches SKILL.md metadata.openclaw.primaryEnv)
+        apiKey: { source: "env", provider: "default", id: "GEMINI_API_KEY" },
+        // Other required secrets for sending and optional providers
+        env: {
+          OPENCLAW_GATEWAY_TOKEN: "your_openclaw_gateway_token",
+          // Only required when Provider=fal
+          FAL_KEY: "your_fal_api_key"
+        }
+      }
+    }
+  }
+}
 ```
+
+> **Sandbox note**: if you run OpenClaw in a sandbox (Docker), host `skills.entries.*.env/apiKey` injection does not automatically apply inside the container. Configure sandbox envs under `agents.defaults.sandbox.docker.env` (or per-agent) as well.
 
 ### 2. Skill Environment Options
 
 Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.env`:
 
-```json
+```json5
 {
   "skills": {
     "entries": {
@@ -78,7 +94,7 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 
 ### 5. SOUL.md
 
-Add the Stella capability block to `~/.openclaw/workspace/SOUL.md`. Copy the content from `templates/SOUL.fragment.md`.
+Add the Stella capability block to `~/.openclaw/workspace/SOUL.md`. Copy the **Minimal (recommended)** block from `templates/SOUL.fragment.md` (the rest is optional tuning).
 
 ## Usage
 
@@ -98,6 +114,7 @@ Test the script directly without going through OpenClaw. Since OpenClaw normally
 npm install
 
 # Option 1: source .env.local then run (recommended)
+# Tip: start from .env.example and fill in your real keys.
 source .env.local && npx ts-node scripts/stella.ts \
   --prompt "make a pic of this person, but wearing a red dress. the person is taking a mirror selfie" \
   --target "@yourusername" \
@@ -118,7 +135,7 @@ source .env.local && Provider=fal npx ts-node scripts/stella.ts \
   --channel "discord"
 ```
 
-> **Note**: The `.env.local` file is only for local development. When running as an OpenClaw skill, environment variables are injected automatically by OpenClaw via `openclaw.json`.
+> **Note**: The project-root `.env.local` file is only for local development. When running as an OpenClaw skill, secrets should be configured via `~/.openclaw/openclaw.json` (or your process environment), and OpenClaw injects them for the agent run.
 
 ## Unit Tests
 
