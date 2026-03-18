@@ -120,17 +120,22 @@ npm run test:watch   # 监听模式
 Stella/
 ├── SKILL.md                  # ClawHub skill 定义
 ├── scripts/
-│   ├── stella.ts             # 主入口
+│   ├── skill.ts              # Skill 主入口
 │   ├── identity.ts           # IDENTITY.md 解析
 │   ├── avatars.ts            # 参考图选择
-│   ├── providers/
-│   │   ├── gemini.ts         # Gemini provider
-│   │   └── fal.ts            # fal.ai provider
-│   └── sender.ts             # OpenClaw 发送
+│   ├── smoke.ts              # 本地 smoke 脚本入口
+│   ├── release-clawhub.mjs    # 发布到 ClawHub 脚本
+│   ├── sender.ts             # OpenClaw 发送
+│   └── providers/
+│       ├── gemini.ts         # Gemini provider
+│       └── fal.ts            # fal.ai provider
 ├── tests/                    # 单元测试（vitest）
+│   └── providers/            # Provider 单测
 ├── templates/
 │   ├── IDENTITY.fragment.md  # IDENTITY.md 配置片段
 │   └── SOUL.fragment.md      # SOUL.md 配置片段
+├── smoke/
+│   └── avatars/              # Smoke 测试用参考图片
 └── docs/
     ├── stella-research-notes.md
     └── clawhub-publish-checklist.md

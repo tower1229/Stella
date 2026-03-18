@@ -120,17 +120,22 @@ npm run test:watch   # Watch mode for development
 Stella/
 ├── SKILL.md                  # ClawHub skill definition
 ├── scripts/
-│   ├── stella.ts             # Main entry point
+│   ├── skill.ts              # Skill main entry point
 │   ├── identity.ts           # IDENTITY.md parser
 │   ├── avatars.ts            # Reference image selector
-│   ├── providers/
-│   │   ├── gemini.ts         # Google Gemini provider
-│   │   └── fal.ts            # fal.ai provider
-│   └── sender.ts             # OpenClaw message sender
+│   ├── smoke.ts              # Local smoke script entry
+│   ├── release-clawhub.mjs    # ClawHub publish script
+│   ├── sender.ts             # OpenClaw message sender
+│   └── providers/
+│       ├── gemini.ts         # Google Gemini provider
+│       └── fal.ts            # fal.ai provider
 ├── tests/                    # Unit tests (vitest)
+│   └── providers/            # Provider unit tests
 ├── templates/
 │   ├── IDENTITY.fragment.md  # IDENTITY.md configuration snippet
 │   └── SOUL.fragment.md      # SOUL.md configuration snippet
+├── smoke/
+│   └── avatars/              # Reference images for smoke testing
 └── docs/
     ├── stella-research-notes.md
     └── clawhub-publish-checklist.md
