@@ -45,14 +45,14 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
 | Option               | Default  | Description                                 |
 | -------------------- | -------- | ------------------------------------------- |
 | `Provider`           | `gemini` | Image provider: `gemini` or `fal`           |
-| `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending      |
+| `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending (when `false`, `AvatarsDir` is ignored and only `Avatar` is used as a reference; if `Avatar` is unavailable, generation runs without reference images) |
 | `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
 ### 2. IDENTITY.md
 
-Add the following to `~/.openclaw/workspace/IDENTITY.md` (see `templates/IDENTITY.fragment.md` for the full snippet):
+Add the following to `~/.openclaw/workspace/IDENTITY.md`:
 
 ```markdown
 Avatar: ./assets/avatar-main.png
@@ -132,7 +132,6 @@ Stella/
 ├── tests/                    # Unit tests (vitest)
 │   └── providers/            # Provider unit tests
 ├── templates/
-│   ├── IDENTITY.fragment.md  # IDENTITY.md configuration snippet
 │   └── SOUL.fragment.md      # SOUL.md configuration snippet
 ├── smoke/
 │   └── avatars/              # Reference images for smoke testing

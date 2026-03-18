@@ -130,7 +130,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 ## User Configuration
 
-Before using this skill, you must configure your OpenClaw workspace. See `templates/IDENTITY.fragment.md` and `templates/SOUL.fragment.md` for the recommended configuration snippets to add to your `IDENTITY.md` and `SOUL.md`.
+Before using this skill, you must configure your OpenClaw workspace. See `templates/SOUL.fragment.md` for the recommended capability snippet to add to your `SOUL.md`.
 
 ### Required: IDENTITY.md
 

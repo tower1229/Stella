@@ -45,14 +45,14 @@ clawhub install stella-selfie
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `Provider` | `gemini` | 图片生成 provider：`gemini` 或 `fal` |
-| `AvatarBlendEnabled` | `true` | 是否启用多参考图融合 |
+| `AvatarBlendEnabled` | `true` | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则不带参考图生成） |
 | `AvatarMaxRefs` | `3` | 最多融合多少张参考图 |
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
 
 ### 2. IDENTITY.md
 
-在 `~/.openclaw/workspace/IDENTITY.md` 中添加如下字段（完整片段见 `templates/IDENTITY.fragment.md`）：
+在 `~/.openclaw/workspace/IDENTITY.md` 中添加如下字段：
 
 ```markdown
 Avatar: ./assets/avatar-main.png
@@ -132,7 +132,6 @@ Stella/
 ├── tests/                    # 单元测试（vitest）
 │   └── providers/            # Provider 单测
 ├── templates/
-│   ├── IDENTITY.fragment.md  # IDENTITY.md 配置片段
 │   └── SOUL.fragment.md      # SOUL.md 配置片段
 ├── smoke/
 │   └── avatars/              # Smoke 测试用参考图片
