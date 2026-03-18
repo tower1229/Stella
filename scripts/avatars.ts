@@ -99,7 +99,9 @@ export function selectAvatars(options: {
         const ext = path.extname(entry.name).toLowerCase();
         if (!SUPPORTED_EXTENSIONS.has(ext)) continue;
 
-        const filePath = path.join(avatarsDir, entry.name);
+        // Use POSIX-style paths for consistent behavior across platforms.
+        // Node on Windows accepts forward slashes in most filesystem APIs.
+        const filePath = toPosixPath(path.join(avatarsDir, entry.name));
         try {
           const stat = fs.statSync(filePath);
           candidates.push({ filePath, time: getFileTime(stat) });
