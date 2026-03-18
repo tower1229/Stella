@@ -1,6 +1,6 @@
 node_modules/
 dist/
-
+sandbox/
 # Local credentials - never commit
 .env.local
 .env
