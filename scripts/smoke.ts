@@ -84,12 +84,7 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
         prompt: "Send me a selfie wearing a red dress",
         resolution: "1K",
       },
-      { name: "02-cafe-zh", prompt: "发张照片，在咖啡馆里", resolution: "1K" },
-      {
-        name: "03-beach",
-        prompt: "Show me what you look like at the beach",
-        resolution: "1K",
-      },
+      { name: "02-selfie", prompt: "给我发一张自拍！", resolution: "1K" },
     ];
 
   const failures: Array<{ name: string; error: string }> = [];
