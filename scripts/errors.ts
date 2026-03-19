@@ -46,6 +46,17 @@ export class StellaError extends Error {
   }
 }
 
+interface NormalizationContext {
+  message: string;
+  status?: number;
+  lower: string;
+}
+
+interface FalNormalizationContext extends NormalizationContext {
+  errorType?: string;
+  modelType?: string;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object") return {};
   return value as Record<string, unknown>;
@@ -113,103 +124,29 @@ function defaultUnknown(provider: StellaProvider, err: unknown): StellaErrorDeta
   };
 }
 
-export function normalizeGeminiError(err: unknown): StellaErrorDetails {
-  const message = readMessage(err);
-  const status = readStatus(err);
-  const lower = message.toLowerCase();
+function makeDetails(
+  provider: StellaProvider,
+  ctx: NormalizationContext,
+  partial: Omit<
+    StellaErrorDetails,
+    "provider" | "statusCode" | "rawMessage" | "upstreamType"
+  > & Pick<StellaErrorDetails, "upstreamType">
+): StellaErrorDetails {
+  return {
+    provider,
+    code: partial.code,
+    category: partial.category,
+    retryable: partial.retryable,
+    userMessage: partial.userMessage,
+    actionHint: partial.actionHint,
+    statusCode: ctx.status,
+    upstreamType: partial.upstreamType,
+    rawMessage: ctx.message,
+  };
+}
 
-  if (message.includes("GEMINI_API_KEY is not set")) {
-    return {
-      provider: "gemini",
-      code: "CONFIG_MISSING",
-      category: "config",
-      retryable: false,
-      userMessage: "这次图片没生成成功：缺少 Gemini API Key。",
-      actionHint: "请在 skills.entries.stella-selfie.env 中配置 GEMINI_API_KEY 后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (lower.includes("safety") || lower.includes("block_reason") || lower.includes("blockedreason")) {
-    return {
-      provider: "gemini",
-      code: "SAFETY_BLOCKED",
-      category: "policy",
-      retryable: false,
-      userMessage: "这次图片没生成成功：请求触发了内容安全限制。",
-      actionHint: "请改用更中性、非敏感的描述后再试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (status === 400) {
-    return {
-      provider: "gemini",
-      code: "INPUT_INVALID",
-      category: "user_fixable",
-      retryable: false,
-      userMessage: "这次图片没生成成功：请求参数不合法。",
-      actionHint: "请简化提示词或调整参数后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (status === 403 || lower.includes("permission_denied")) {
-    return {
-      provider: "gemini",
-      code: "PERMISSION_DENIED",
-      category: "auth",
-      retryable: false,
-      userMessage: "这次图片没生成成功：Gemini 鉴权失败或权限不足。",
-      actionHint: "请检查 API Key 是否正确、可用并具备对应模型权限。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (status === 404 || lower.includes("not_found")) {
-    return {
-      provider: "gemini",
-      code: "RESOURCE_NOT_FOUND",
-      category: "user_fixable",
-      retryable: false,
-      userMessage: "这次图片没生成成功：请求引用的资源不存在。",
-      actionHint: "请检查输入资源路径或链接后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (status === 429 || lower.includes("resource_exhausted") || lower.includes("rate limit")) {
-    return {
-      provider: "gemini",
-      code: "RATE_LIMITED",
-      category: "transient",
-      retryable: true,
-      userMessage: "这次图片没生成成功：请求过于频繁。",
-      actionHint: "请等待 1-2 分钟后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (status === 504 || lower.includes("deadline_exceeded") || lower.includes("timeout")) {
-    return {
-      provider: "gemini",
-      code: "TIMEOUT",
-      category: "transient",
-      retryable: true,
-      userMessage: "这次图片没生成成功：Gemini 处理超时。",
-      actionHint: "请稍后重试，或简化提示词后再试。",
-      statusCode: status,
-      rawMessage: message,
-    };
-  }
-
-  if (
+function isGeminiNetworkTransient(lower: string): boolean {
+  return (
     lower.includes("econnreset") ||
     lower.includes("etimedout") ||
     lower.includes("fetch failed") ||
@@ -217,43 +154,141 @@ export function normalizeGeminiError(err: unknown): StellaErrorDetails {
     lower.includes("socket hang up") ||
     lower.includes("eai_again") ||
     lower.includes("enotfound")
+  );
+}
+
+export function normalizeGeminiError(err: unknown): StellaErrorDetails {
+  const ctx: NormalizationContext = {
+    message: readMessage(err),
+    status: readStatus(err),
+    lower: readMessage(err).toLowerCase(),
+  };
+
+  if (ctx.message.includes("GEMINI_API_KEY is not set")) {
+    return makeDetails("gemini", ctx, {
+      code: "CONFIG_MISSING",
+      category: "config",
+      retryable: false,
+      userMessage: "这次图片没生成成功：缺少 Gemini API Key。",
+      actionHint: "请在 skills.entries.stella-selfie.env 中配置 GEMINI_API_KEY 后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.lower.includes("safety") ||
+    ctx.lower.includes("block_reason") ||
+    ctx.lower.includes("blockedreason")
   ) {
-    return {
-      provider: "gemini",
+    return makeDetails("gemini", ctx, {
+      code: "SAFETY_BLOCKED",
+      category: "policy",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求触发了内容安全限制。",
+      actionHint: "请改用更中性、非敏感的描述后再试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 400) {
+    return makeDetails("gemini", ctx, {
+      code: "INPUT_INVALID",
+      category: "user_fixable",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求参数不合法。",
+      actionHint: "请简化提示词或调整参数后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 403 || ctx.lower.includes("permission_denied")) {
+    return makeDetails("gemini", ctx, {
+      code: "PERMISSION_DENIED",
+      category: "auth",
+      retryable: false,
+      userMessage: "这次图片没生成成功：Gemini 鉴权失败或权限不足。",
+      actionHint: "请检查 API Key 是否正确、可用并具备对应模型权限。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 404 || ctx.lower.includes("not_found")) {
+    return makeDetails("gemini", ctx, {
+      code: "RESOURCE_NOT_FOUND",
+      category: "user_fixable",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求引用的资源不存在。",
+      actionHint: "请检查输入资源路径或链接后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.status === 429 ||
+    ctx.lower.includes("resource_exhausted") ||
+    ctx.lower.includes("rate limit")
+  ) {
+    return makeDetails("gemini", ctx, {
+      code: "RATE_LIMITED",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：请求过于频繁。",
+      actionHint: "请等待 1-2 分钟后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.status === 504 ||
+    ctx.lower.includes("deadline_exceeded") ||
+    ctx.lower.includes("timeout")
+  ) {
+    return makeDetails("gemini", ctx, {
+      code: "TIMEOUT",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：Gemini 处理超时。",
+      actionHint: "请稍后重试，或简化提示词后再试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (isGeminiNetworkTransient(ctx.lower)) {
+    return makeDetails("gemini", ctx, {
       code: "UPSTREAM_UNAVAILABLE",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：网络或上游服务暂时不可用。",
       actionHint: "请稍后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
+      upstreamType: undefined,
+    });
   }
 
-  if (status === 500 || status === 503 || lower.includes("unavailable") || lower.includes("internal")) {
-    return {
-      provider: "gemini",
+  if (
+    ctx.status === 500 ||
+    ctx.status === 503 ||
+    ctx.lower.includes("unavailable") ||
+    ctx.lower.includes("internal")
+  ) {
+    return makeDetails("gemini", ctx, {
       code: "UPSTREAM_UNAVAILABLE",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：Gemini 服务暂时不可用。",
       actionHint: "请稍后重试，必要时切换 Provider=fal。",
-      statusCode: status,
-      rawMessage: message,
-    };
+      upstreamType: undefined,
+    });
   }
 
-  if (lower.includes("no image data") || lower.includes("no content parts")) {
-    return {
-      provider: "gemini",
+  if (ctx.lower.includes("no image data") || ctx.lower.includes("no content parts")) {
+    return makeDetails("gemini", ctx, {
       code: "NO_OUTPUT",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：模型未返回有效图片。",
       actionHint: "请直接重试一次，或稍微改写提示词后再试。",
-      statusCode: status,
-      rawMessage: message,
-    };
+      upstreamType: undefined,
+    });
   }
 
   return defaultUnknown("gemini", err);
@@ -269,162 +304,141 @@ export function normalizeFalError(err: unknown): StellaErrorDetails {
   const retryableHeader = isTruthyStringFlag(rec["x-fal-retryable"]);
   const retryableField = isTruthyStringFlag(rec.retryable);
   const retryable = retryableHeader || retryableField;
+  const ctx: FalNormalizationContext = {
+    message,
+    status,
+    lower,
+    errorType,
+    modelType,
+  };
 
-  if (message.includes("FAL_KEY is not set")) {
-    return {
-      provider: "fal",
+  if (ctx.message.includes("FAL_KEY is not set")) {
+    return makeDetails("fal", ctx, {
       code: "CONFIG_MISSING",
       category: "config",
       retryable: false,
       userMessage: "这次图片没生成成功：缺少 fal API Key。",
       actionHint: "请在 skills.entries.stella-selfie.env 中配置 FAL_KEY 后重试。",
-      statusCode: status,
-      rawMessage: message,
-    };
+      upstreamType: undefined,
+    });
   }
 
-  if (status === 401 || status === 403) {
-    return {
-      provider: "fal",
+  if (ctx.status === 401 || ctx.status === 403) {
+    return makeDetails("fal", ctx, {
       code: "AUTH_INVALID_KEY",
       category: "auth",
       retryable: false,
       userMessage: "这次图片没生成成功：fal 鉴权失败。",
       actionHint: "请检查 FAL_KEY 是否有效且有权限访问该模型。",
-      statusCode: status,
-      rawMessage: message,
-    };
+      upstreamType: undefined,
+    });
   }
 
-  if (status === 429) {
-    return {
-      provider: "fal",
+  if (ctx.status === 429) {
+    return makeDetails("fal", ctx, {
       code: "RATE_LIMITED",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：fal 当前请求较拥堵。",
       actionHint: "请稍后重试。",
-      statusCode: status,
-      upstreamType: errorType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.errorType,
+    });
   }
 
   if (
-    modelType === "content_policy_violation" ||
-    lower.includes("content policy") ||
-    lower.includes("safety")
+    ctx.modelType === "content_policy_violation" ||
+    ctx.lower.includes("content policy") ||
+    ctx.lower.includes("safety")
   ) {
-    return {
-      provider: "fal",
+    return makeDetails("fal", ctx, {
       code: "SAFETY_BLOCKED",
       category: "policy",
       retryable: false,
       userMessage: "这次图片没生成成功：请求触发了内容安全限制。",
       actionHint: "请改用更中性、非敏感的描述后再试。",
-      statusCode: status,
-      upstreamType: modelType || errorType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.modelType || ctx.errorType,
+    });
   }
 
-  if (modelType === "file_download_error" || modelType === "image_load_error") {
-    return {
-      provider: "fal",
+  if (ctx.modelType === "file_download_error" || ctx.modelType === "image_load_error") {
+    return makeDetails("fal", ctx, {
       code: "INPUT_INVALID",
       category: "user_fixable",
       retryable: false,
       userMessage: "这次图片没生成成功：参考图地址不可访问或无法读取。",
       actionHint: "请确认 AvatarsURLs 为公开可下载的 http/https 图片地址。",
-      statusCode: status,
-      upstreamType: modelType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.modelType,
+    });
   }
 
   if (
-    modelType === "unsupported_image_format" ||
-    modelType === "image_too_small" ||
-    modelType === "image_too_large" ||
-    modelType === "feature_not_supported"
+    ctx.modelType === "unsupported_image_format" ||
+    ctx.modelType === "image_too_small" ||
+    ctx.modelType === "image_too_large" ||
+    ctx.modelType === "feature_not_supported"
   ) {
-    return {
-      provider: "fal",
+    return makeDetails("fal", ctx, {
       code: "INPUT_INVALID",
       category: "user_fixable",
       retryable: false,
       userMessage: "这次图片没生成成功：输入图片规格不符合要求。",
       actionHint: "请更换为支持格式并确保尺寸满足模型要求后重试。",
-      statusCode: status,
-      upstreamType: modelType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.modelType,
+    });
   }
 
-  if (modelType === "no_media_generated" || lower.includes("no images")) {
-    return {
-      provider: "fal",
+  if (ctx.modelType === "no_media_generated" || ctx.lower.includes("no images")) {
+    return makeDetails("fal", ctx, {
       code: "NO_OUTPUT",
       category: "user_fixable",
       retryable: false,
       userMessage: "这次图片没生成成功：模型未生成有效图片。",
       actionHint: "请简化提示词或调整描述后重试。",
-      statusCode: status,
-      upstreamType: modelType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.modelType,
+    });
   }
 
   const timeoutErrorTypes = new Set(["request_timeout", "startup_timeout", "generation_timeout"]);
   if (
-    status === 504 ||
-    (errorType && timeoutErrorTypes.has(errorType)) ||
-    (modelType && timeoutErrorTypes.has(modelType))
+    ctx.status === 504 ||
+    (ctx.errorType && timeoutErrorTypes.has(ctx.errorType)) ||
+    (ctx.modelType && timeoutErrorTypes.has(ctx.modelType))
   ) {
-    return {
-      provider: "fal",
+    return makeDetails("fal", ctx, {
       code: "TIMEOUT",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：fal 处理超时。",
       actionHint: "请稍后重试。",
-      statusCode: status,
-      upstreamType: errorType || modelType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.errorType || ctx.modelType,
+    });
   }
 
   if (
-    status === 500 ||
-    status === 502 ||
-    status === 503 ||
-    (errorType && (errorType.startsWith("runner_") || errorType === "internal_error"))
+    ctx.status === 500 ||
+    ctx.status === 502 ||
+    ctx.status === 503 ||
+    (ctx.errorType && (ctx.errorType.startsWith("runner_") || ctx.errorType === "internal_error"))
   ) {
-    return {
-      provider: "fal",
+    return makeDetails("fal", ctx, {
       code: "UPSTREAM_UNAVAILABLE",
       category: "transient",
       retryable: true,
       userMessage: "这次图片没生成成功：fal 服务暂时不可用。",
       actionHint: "请稍后重试。",
-      statusCode: status,
-      upstreamType: errorType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.errorType,
+    });
   }
 
-  if (status === 400 || status === 422 || errorType === "bad_request") {
-    return {
-      provider: "fal",
+  if (ctx.status === 400 || ctx.status === 422 || ctx.errorType === "bad_request") {
+    return makeDetails("fal", ctx, {
       code: "INPUT_INVALID",
       category: "user_fixable",
       retryable: false,
       userMessage: "这次图片没生成成功：请求参数不符合 fal 接口要求。",
       actionHint: "请检查提示词和参考图参数后重试。",
-      statusCode: status,
-      upstreamType: modelType || errorType,
-      rawMessage: message,
-    };
+      upstreamType: ctx.modelType || ctx.errorType,
+    });
   }
 
   return defaultUnknown("fal", err);
