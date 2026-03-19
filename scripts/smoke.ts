@@ -22,7 +22,8 @@ function parseArgs(argv: string[]): {
   const outdir = get("--outdir") || "./out";
   const provider = (get("--provider") || "gemini") as "gemini";
   const avatarsDir = get("--avatars-dir") || "./smoke/avatars";
-  const avatarMaxRefsRaw = get("--avatar-max-refs") || "3";
+  const avatarMaxRefsEnv = process.env.AvatarMaxRefs || process.env.AVATAR_MAX_REFS;
+  const avatarMaxRefsRaw = get("--avatar-max-refs") || avatarMaxRefsEnv || "3";
   const avatarMaxRefs = Math.max(1, parseInt(avatarMaxRefsRaw, 10) || 3);
   return { outdir, provider, avatarsDir, avatarMaxRefs };
 }
@@ -84,7 +85,11 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
         prompt: "Send me a selfie wearing a red dress",
         resolution: "1K",
       },
-      { name: "02-selfie", prompt: "给我发一张自拍！", resolution: "1K" },
+      {
+        name: "02-selfie",
+        prompt: "给我发一张健身房里的自拍！",
+        resolution: "1K",
+      },
     ];
 
   const failures: Array<{ name: string; error: string }> = [];
@@ -122,10 +127,10 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  loadDotEnvLocalIfPresent();
   parsedArgs = parseArgs(process.argv);
   const { outdir, provider, avatarsDir, avatarMaxRefs } = parsedArgs;
   ensureDir(outdir);
-  loadDotEnvLocalIfPresent();
 
   if (provider !== "gemini") {
     throw new Error(`Unsupported provider for smoke test: ${provider}`);
