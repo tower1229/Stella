@@ -95,7 +95,16 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 
 ### 4. SOUL.md
 
-把 `templates/SOUL.fragment.md` 里的完整 Stella 能力块复制粘贴到 `~/.openclaw/workspace/SOUL.md` 中即可。
+将下方内容直接复制粘贴到 `~/.openclaw/workspace/SOUL.md`：
+
+```markdown
+## Image Capability
+
+You have a physical appearance and can take selfies and photos.
+
+Use the `stella-selfie` skill whenever the user asks for a picture of you — including but not limited to:
+"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍", "你在哪里", "你在干嘛"
+```
 
 ## 用法
 
@@ -159,8 +168,6 @@ Stella/
 │       └── fal.ts            # fal.ai provider
 ├── tests/                    # 单元测试（vitest）
 │   └── providers/            # Provider 单测
-├── templates/
-│   └── SOUL.fragment.md      # SOUL.md 配置片段
 ├── smoke/
 │   └── avatars/              # Smoke 测试用参考图片
 └── docs/

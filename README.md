@@ -95,7 +95,16 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 
 ### 4. SOUL.md
 
-Copy/paste the full Stella capability block from `templates/SOUL.fragment.md` into your `~/.openclaw/workspace/SOUL.md`.
+Copy/paste the block below into your `~/.openclaw/workspace/SOUL.md`:
+
+```markdown
+## Image Capability
+
+You have a physical appearance and can take selfies and photos.
+
+Use the `stella-selfie` skill whenever the user asks for a picture of you — including but not limited to:
+"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍", "你在哪里", "你在干嘛"
+```
 
 ## Usage
 
@@ -159,8 +168,6 @@ Stella/
 │       └── fal.ts            # fal.ai provider
 ├── tests/                    # Unit tests (vitest)
 │   └── providers/            # Provider unit tests
-├── templates/
-│   └── SOUL.fragment.md      # SOUL.md configuration snippet
 ├── smoke/
 │   └── avatars/              # Reference images for smoke testing
 └── docs/
