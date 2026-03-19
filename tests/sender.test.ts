@@ -131,4 +131,43 @@ describe("sendImage", () => {
     const [, opts] = mockFetch.mock.calls[0];
     expect(opts.headers["Authorization"]).toBeUndefined();
   });
+
+  it("supports sending text-only message (no media) via CLI", async () => {
+    mockExecAsync.mockResolvedValue({ stdout: "ok", stderr: "" });
+
+    const { sendMessage } = await getModule();
+    await sendMessage({
+      channel: "telegram",
+      target: "@myuser",
+      message: "generation failed",
+    });
+
+    const cmd: string = mockExecAsync.mock.calls[0][0];
+    expect(cmd).toContain("openclaw message send");
+    expect(cmd).toContain("--message");
+    expect(cmd).toContain("generation failed");
+    expect(cmd).not.toContain("--media");
+  });
+
+  it("supports sending text-only message via HTTP fallback", async () => {
+    mockExecAsync.mockRejectedValue(new Error("command not found: openclaw"));
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "ok",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { sendMessage } = await getModule();
+    await sendMessage({
+      channel: "telegram",
+      target: "@myuser",
+      message: "generation failed",
+      gatewayUrl: "http://localhost:18789",
+    });
+
+    const [, opts] = mockFetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.message).toBe("generation failed");
+    expect(body.media).toBeUndefined();
+  });
 });

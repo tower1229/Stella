@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { asStellaError, shouldRetryGemini } from "../errors";
 
 const MODEL = "gemini-3.1-flash-image-preview";
 
@@ -78,7 +79,12 @@ export async function generateWithGemini(
   options: GeminiGenerateOptions
 ): Promise<GeminiResult[]> {
   const { prompt, referenceImages, resolution, count, apiKey } = options;
-  const key = getApiKey(apiKey);
+  let key: string;
+  try {
+    key = getApiKey(apiKey);
+  } catch (err) {
+    throw asStellaError("gemini", err);
+  }
 
   // Dynamic import to avoid loading the SDK when not needed
   const { GoogleGenAI } = await import("@google/genai");
@@ -111,6 +117,9 @@ export async function generateWithGemini(
         break;
       } catch (err) {
         lastErr = err;
+        if (!shouldRetryGemini(err)) {
+          throw asStellaError("gemini", err);
+        }
         // Small backoff for transient API/network errors
         const delayMs = 500 * attempt;
         await new Promise((r) => setTimeout(r, delayMs));
@@ -118,8 +127,10 @@ export async function generateWithGemini(
     }
 
     if (!response) {
-      throw new Error(
-        `Gemini generateContent failed after ${maxAttempts} attempts: ${(lastErr as Error)?.message || String(lastErr)}`
+      if (lastErr) throw asStellaError("gemini", lastErr);
+      throw asStellaError(
+        "gemini",
+        new Error(`Gemini generateContent failed after ${maxAttempts} attempts`)
       );
     }
 
@@ -135,11 +146,19 @@ export async function generateWithGemini(
       for (let attempt = 1; attempt <= 2; attempt++) {
         retried = true;
         await new Promise((r) => setTimeout(r, 400 * attempt));
-        const r2 = await ai.models.generateContent({
-          model: MODEL,
-          contents,
-          config: generateConfig as object,
-        });
+        let r2: any;
+        try {
+          r2 = await ai.models.generateContent({
+            model: MODEL,
+            contents,
+            config: generateConfig as object,
+          });
+        } catch (err) {
+          if (!shouldRetryGemini(err)) {
+            throw asStellaError("gemini", err);
+          }
+          continue;
+        }
         const c2 = r2.candidates?.[0];
         if (c2?.content?.parts) {
           response = r2;
@@ -149,8 +168,11 @@ export async function generateWithGemini(
 
       const cFinal = response.candidates?.[0];
       if (!cFinal?.content?.parts) {
-        throw new Error(
+        throw asStellaError(
+          "gemini",
+          new Error(
           "Gemini returned no content parts (after retry). Try again; this is often transient."
+          )
         );
       }
     }
@@ -175,7 +197,10 @@ export async function generateWithGemini(
     }
 
     if (!imageData) {
-      throw new Error("Gemini returned no image data in response");
+      throw asStellaError(
+        "gemini",
+        new Error("Gemini returned no image data in response")
+      );
     }
 
     const ext = mimeType.split("/")[1] || "png";

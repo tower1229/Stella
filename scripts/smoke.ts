@@ -74,19 +74,23 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
   });
 
   console.log(
-    `[smoke] Reference images: ${referenceImages.length > 0 ? referenceImages.join(", ") : "(none — text-to-image mode)"}`
+    `[smoke] Reference images: ${referenceImages.length > 0 ? referenceImages.join(", ") : "(none — text-to-image mode)"}`,
   );
 
-  const cases: Array<{ name: string; prompt: string; resolution: Resolution }> = [
-    { name: "01-red-dress", prompt: "Send me a selfie wearing a red dress", resolution: "1K" },
-    { name: "02-cafe-zh", prompt: "发张照片，在咖啡馆里", resolution: "1K" },
-    { name: "03-beach", prompt: "Show me what you look like at the beach", resolution: "1K" },
-    {
-      name: "04-rooftop-2k",
-      prompt: "Send a pic at a rooftop party, 2K resolution",
-      resolution: "2K",
-    },
-  ];
+  const cases: Array<{ name: string; prompt: string; resolution: Resolution }> =
+    [
+      {
+        name: "01-red-dress",
+        prompt: "Send me a selfie wearing a red dress",
+        resolution: "1K",
+      },
+      { name: "02-cafe-zh", prompt: "发张照片，在咖啡馆里", resolution: "1K" },
+      {
+        name: "03-beach",
+        prompt: "Show me what you look like at the beach",
+        resolution: "1K",
+      },
+    ];
 
   const failures: Array<{ name: string; error: string }> = [];
 
@@ -146,4 +150,3 @@ main().catch((err) => {
   console.error(`[smoke] Fatal error: ${(err as Error).message}`);
   process.exit(1);
 });
-

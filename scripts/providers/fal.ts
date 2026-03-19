@@ -1,3 +1,5 @@
+import { asStellaError, shouldRetryFal } from "../errors";
+
 export type Resolution = "1K" | "2K" | "4K";
 
 export interface FalGenerateOptions {
@@ -47,7 +49,12 @@ export async function generateWithFal(
   options: FalGenerateOptions
 ): Promise<FalResult[]> {
   const { prompt, referenceImageUrls, count, apiKey } = options;
-  const key = getApiKey(apiKey);
+  let key: string;
+  try {
+    key = getApiKey(apiKey);
+  } catch (err) {
+    throw asStellaError("fal", err);
+  }
 
   const hasRefs = referenceImageUrls.length > 0;
   const endpoint = hasRefs
@@ -72,11 +79,38 @@ export async function generateWithFal(
     input.aspect_ratio = "1:1";
   }
 
-  const result = await fal.subscribe(endpoint, { input });
+  const maxAttempts = 3;
+  let result: any;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      result = await fal.subscribe(endpoint, { input });
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (!shouldRetryFal(err)) {
+        throw asStellaError("fal", err);
+      }
+      const delayMs = 600 * attempt;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  if (!result) {
+    if (lastErr) throw asStellaError("fal", lastErr);
+    throw asStellaError(
+      "fal",
+      new Error(`fal.ai request failed after ${maxAttempts} attempts`)
+    );
+  }
+
   const data = result.data as FalResponse;
 
   if (!data.images || data.images.length === 0) {
-    throw new Error(`fal.ai returned no images from endpoint: ${endpoint}`);
+    throw asStellaError(
+      "fal",
+      new Error(`fal.ai returned no images from endpoint: ${endpoint}`)
+    );
   }
 
   return data.images.map((img) => ({

@@ -106,6 +106,16 @@ Once configured, use natural language with your OpenClaw agent:
 - "Show me what you look like at the beach"
 - "Send a pic at a rooftop party, 2K resolution"
 
+## Failure Experience
+
+When generation fails, Stella always sends a short text notification to the same target, so users are not left with a silent failure.
+
+Typical failure messages include:
+- Missing credentials (`GEMINI_API_KEY` / `FAL_KEY`)
+- Rate limit / temporary upstream outage (retry recommended)
+- Safety block (prompt rewrite recommended)
+- fal reference URL issues (public `http/https` URL required)
+
 ## Direct Script Testing
 
 Test the script directly without going through OpenClaw. Since OpenClaw normally injects environment variables at runtime, you need to load them manually for local testing.
@@ -126,7 +136,7 @@ npm run smoke
 npm test
 ```
 
-Runs 32 unit tests covering all modules (identity parser, avatar selector, Gemini provider, fal provider, sender). All tests use mocks — no real API calls are made.
+Runs unit tests covering all modules (identity parser, avatar selector, Gemini provider, fal provider, sender, skill runtime). All tests use mocks — no real API calls are made.
 
 ```bash
 npm run test:watch   # Watch mode for development

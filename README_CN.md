@@ -106,6 +106,16 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 - “让我看看你在海滩上的样子”
 - “发张屋顶派对的照片，2K 分辨率”
 
+## 异常体验
+
+当生成失败时，Stella 会向同一目标发送一条简短文本提示，避免“无响应”的体验。
+
+常见提示场景：
+- 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY`）
+- 限流或上游临时不可用（建议稍后重试）
+- 安全拦截（建议改写提示词）
+- fal 参考图 URL 不可访问（需公开 `http/https` 图片地址）
+
 ## 直接脚本测试（不走 OpenClaw）
 
 如果你想直接运行脚本测试（不通过 OpenClaw），需要自己提供环境变量（因为 OpenClaw 平时会在运行时注入）。
@@ -126,7 +136,7 @@ npm run smoke
 npm test
 ```
 
-项目包含 32 个单元测试，覆盖 identity parser、avatar selector、Gemini provider、fal provider、sender 等模块；全部使用 mock，不会触发真实 API 调用。
+项目包含多组单元测试，覆盖 identity parser、avatar selector、Gemini provider、fal provider、sender、skill runtime 等模块；全部使用 mock，不会触发真实 API 调用。
 
 ```bash
 npm run test:watch   # 监听模式

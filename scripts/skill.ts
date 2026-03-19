@@ -11,7 +11,8 @@ import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
 import { generateWithGemini, Resolution as GeminiResolution } from "./providers/gemini";
 import { generateWithFal } from "./providers/fal";
-import { sendImage } from "./sender";
+import { sendImage, sendMessage } from "./sender";
+import { asStellaError, formatFailureMessage } from "./errors";
 
 type Provider = "gemini" | "fal";
 type Resolution = "1K" | "2K" | "4K";
@@ -74,8 +75,8 @@ Usage: npx ts-node scripts/skill.ts \\
   };
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv);
+export async function runSkill(argv: string[] = process.argv): Promise<void> {
+  const args = parseArgs(argv);
 
   const provider: Provider = (process.env.Provider as Provider) || "gemini";
   const avatarBlendEnabled =
@@ -103,53 +104,75 @@ async function main(): Promise<void> {
     avatarBlendEnabled,
   });
 
-  if (provider === "gemini") {
-    const results = await generateWithGemini({
-      prompt: args.prompt,
-      referenceImages,
-      resolution: args.resolution as GeminiResolution,
-      count: args.count,
-    });
+  try {
+    if (provider === "gemini") {
+      const results = await generateWithGemini({
+        prompt: args.prompt,
+        referenceImages,
+        resolution: args.resolution as GeminiResolution,
+        count: args.count,
+      });
 
-    for (const result of results) {
-      await sendImage({
+      for (const result of results) {
+        await sendImage({
+          channel: args.channel,
+          target: args.target,
+          media: result.outputPath,
+          message: args.caption,
+          gatewayToken,
+          gatewayUrl,
+        });
+      }
+    } else {
+      // fal provider: reference images must be HTTP/HTTPS URLs
+      const referenceImageUrls =
+        identity.avatarsURLs.length > 0
+          ? identity.avatarsURLs.slice(0, avatarMaxRefs)
+          : referenceImages.filter((p) => p.startsWith("http://") || p.startsWith("https://"));
+
+      const results = await generateWithFal({
+        prompt: args.prompt,
+        referenceImageUrls,
+        resolution: args.resolution,
+        count: args.count,
+      });
+
+      for (const result of results) {
+        await sendImage({
+          channel: args.channel,
+          target: args.target,
+          media: result.imageUrl,
+          message: args.caption,
+          gatewayToken,
+          gatewayUrl,
+        });
+      }
+    }
+  } catch (err) {
+    const stellaErr = asStellaError(provider, err);
+    const failureMessage = formatFailureMessage(stellaErr.details);
+    try {
+      await sendMessage({
         channel: args.channel,
         target: args.target,
-        media: result.outputPath,
-        message: args.caption,
+        message: failureMessage,
         gatewayToken,
         gatewayUrl,
       });
+    } catch (notifyErr) {
+      const notifyMsg =
+        (notifyErr as Error)?.message || String(notifyErr);
+      console.warn(`[stella] Failed to notify channel about generation error: ${notifyMsg}`);
     }
-  } else {
-    // fal provider: reference images must be HTTP/HTTPS URLs
-    const referenceImageUrls =
-      identity.avatarsURLs.length > 0
-        ? identity.avatarsURLs.slice(0, avatarMaxRefs)
-        : referenceImages.filter((p) => p.startsWith("http://") || p.startsWith("https://"));
 
-    const results = await generateWithFal({
-      prompt: args.prompt,
-      referenceImageUrls,
-      resolution: args.resolution,
-      count: args.count,
-    });
-
-    for (const result of results) {
-      await sendImage({
-        channel: args.channel,
-        target: args.target,
-        media: result.imageUrl,
-        message: args.caption,
-        gatewayToken,
-        gatewayUrl,
-      });
-    }
+    throw stellaErr;
   }
 }
 
-main().catch((err) => {
-  console.error(`[stella] Fatal error: ${(err as Error).message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  runSkill().catch((err) => {
+    console.error(`[stella] Fatal error: ${(err as Error).message}`);
+    process.exit(1);
+  });
+}
 

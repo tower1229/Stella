@@ -190,6 +190,65 @@ describe("generateWithFal", () => {
         resolution: "1K",
         count: 1,
       })
-    ).rejects.toThrow("no images");
+    ).rejects.toMatchObject({
+      name: "StellaError",
+      details: expect.objectContaining({
+        code: "NO_OUTPUT",
+      }),
+    });
+  });
+
+  it("retries transient fal request errors", async () => {
+    const transientErr = {
+      status: 503,
+      error_type: "runner_connection_timeout",
+      message: "runner timeout",
+    };
+    mockSubscribe
+      .mockRejectedValueOnce(transientErr)
+      .mockRejectedValueOnce(transientErr)
+      .mockResolvedValue(makeFalResponse(["https://example.com/img.jpg"]));
+
+    const { generateWithFal } = await getModule();
+    const results = await generateWithFal({
+      prompt: "test",
+      referenceImageUrls: [],
+      resolution: "1K",
+      count: 1,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(mockSubscribe).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry non-retryable 422 policy errors", async () => {
+    const policyErr = {
+      status: 422,
+      detail: [
+        {
+          type: "content_policy_violation",
+          msg: "blocked",
+        },
+      ],
+      message: "blocked by content policy",
+    };
+    mockSubscribe.mockRejectedValue(policyErr);
+
+    const { generateWithFal } = await getModule();
+    await expect(
+      generateWithFal({
+        prompt: "test",
+        referenceImageUrls: [],
+        resolution: "1K",
+        count: 1,
+      })
+    ).rejects.toMatchObject({
+      name: "StellaError",
+      details: expect.objectContaining({
+        code: "SAFETY_BLOCKED",
+        retryable: false,
+      }),
+    });
+    expect(mockSubscribe).toHaveBeenCalledTimes(1);
   });
 });

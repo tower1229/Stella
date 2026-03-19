@@ -106,7 +106,7 @@ a close-up selfie taken by herself at a cozy cafe with warm lighting, direct eye
 After the script completes, confirm to the user:
 - Image was generated successfully
 - Image was sent to the target channel
-- If any error occurred, report it directly
+- If any error occurred, send a concise actionable failure message
 
 ## Environment Variables
 

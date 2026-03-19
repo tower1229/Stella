@@ -204,4 +204,98 @@ describe("generateWithGemini", () => {
 
     expect(results[0].revisedPrompt).toBe("Enhanced prompt text");
   });
+
+  it("retries on rate-limit style errors and succeeds", async () => {
+    const fakeImageData = Buffer.from("x").toString("base64");
+    const rateLimitedErr = Object.assign(new Error("RESOURCE_EXHAUSTED"), {
+      status: 429,
+    });
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const mockGenerateContent = vi
+      .fn()
+      .mockRejectedValueOnce(rateLimitedErr)
+      .mockRejectedValueOnce(rateLimitedErr)
+      .mockResolvedValue(makeGeminiResponse([makeImagePart(fakeImageData)]));
+    vi.mocked(GoogleGenAI).mockImplementation(
+      () =>
+        ({
+          models: { generateContent: mockGenerateContent },
+        }) as any
+    );
+
+    mockFs.writeFileSync.mockImplementation(() => {});
+
+    const { generateWithGemini } = await getModule();
+    const results = await generateWithGemini({
+      prompt: "test",
+      referenceImages: [],
+      resolution: "1K",
+      count: 1,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry on permission errors", async () => {
+    const permissionErr = Object.assign(new Error("PERMISSION_DENIED"), {
+      status: 403,
+    });
+    const { GoogleGenAI } = await import("@google/genai");
+    const mockGenerateContent = vi.fn().mockRejectedValue(permissionErr);
+    vi.mocked(GoogleGenAI).mockImplementation(
+      () =>
+        ({
+          models: { generateContent: mockGenerateContent },
+        }) as any
+    );
+
+    const { generateWithGemini } = await getModule();
+    await expect(
+      generateWithGemini({
+        prompt: "test",
+        referenceImages: [],
+        resolution: "1K",
+        count: 1,
+      })
+    ).rejects.toMatchObject({
+      name: "StellaError",
+      details: expect.objectContaining({
+        code: "PERMISSION_DENIED",
+        retryable: false,
+      }),
+    });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps safety blocks to structured policy errors", async () => {
+    const safetyErr = Object.assign(new Error("finishReason=SAFETY"), {
+      status: 400,
+    });
+    const { GoogleGenAI } = await import("@google/genai");
+    const mockGenerateContent = vi.fn().mockRejectedValue(safetyErr);
+    vi.mocked(GoogleGenAI).mockImplementation(
+      () =>
+        ({
+          models: { generateContent: mockGenerateContent },
+        }) as any
+    );
+
+    const { generateWithGemini } = await getModule();
+    await expect(
+      generateWithGemini({
+        prompt: "test",
+        referenceImages: [],
+        resolution: "1K",
+        count: 1,
+      })
+    ).rejects.toMatchObject({
+      name: "StellaError",
+      details: expect.objectContaining({
+        code: "SAFETY_BLOCKED",
+        category: "policy",
+      }),
+    });
+  });
 });

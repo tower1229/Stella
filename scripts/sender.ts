@@ -3,22 +3,22 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
-export interface SendOptions {
+export interface SendMessageOptions {
   channel: string;
   target: string;
-  media: string;
+  media?: string;
   message?: string;
   gatewayToken?: string;
   gatewayUrl?: string;
 }
 
 /**
- * Send an image to an OpenClaw channel.
+ * Send a message to an OpenClaw channel.
  *
  * Tries the `openclaw` CLI first (OpenClaw 2026.3.13 format).
  * Falls back to direct HTTP POST to the gateway if CLI is unavailable.
  */
-export async function sendImage(options: SendOptions): Promise<void> {
+export async function sendMessage(options: SendMessageOptions): Promise<void> {
   const {
     channel,
     target,
@@ -39,14 +39,28 @@ export async function sendImage(options: SendOptions): Promise<void> {
 }
 
 /**
+ * Backward-compatible image send helper.
+ */
+export async function sendImage(options: {
+  channel: string;
+  target: string;
+  media: string;
+  message?: string;
+  gatewayToken?: string;
+  gatewayUrl?: string;
+}): Promise<void> {
+  await sendMessage(options);
+}
+
+/**
  * Send via `openclaw message send` CLI (OpenClaw 2026.3.13).
  * Command format:
- *   openclaw message send --channel <provider> --target <destination> --message <caption> --media <url_or_path>
+ *   openclaw message send --channel <provider> --target <destination> [--message <caption>] [--media <url_or_path>]
  */
 async function sendViaCLI(options: {
   channel: string;
   target: string;
-  media: string;
+  media?: string;
   message: string;
 }): Promise<void> {
   const { channel, target, media, message } = options;
@@ -55,8 +69,11 @@ async function sendViaCLI(options: {
     "openclaw message send",
     `--channel ${shellEscape(channel)}`,
     `--target ${shellEscape(target)}`,
-    `--media ${shellEscape(media)}`,
   ];
+
+  if (media) {
+    parts.push(`--media ${shellEscape(media)}`);
+  }
 
   if (message) {
     parts.push(`--message ${shellEscape(message)}`);
@@ -76,7 +93,7 @@ async function sendViaCLI(options: {
 async function sendViaHTTP(options: {
   channel: string;
   target: string;
-  media: string;
+  media?: string;
   message: string;
   gatewayToken?: string;
   gatewayUrl: string;
@@ -91,13 +108,16 @@ async function sendViaHTTP(options: {
     headers["Authorization"] = `Bearer ${gatewayToken}`;
   }
 
-  const body = JSON.stringify({
+  const payload: Record<string, string> = {
     action: "send",
     channel,
     target,
     message,
-    media,
-  });
+  };
+  if (media) {
+    payload.media = media;
+  }
+  const body = JSON.stringify(payload);
 
   const url = `${gatewayUrl}/message`;
   console.log(`[stella] HTTP POST: ${url}`);
