@@ -108,7 +108,7 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 
 ## 异常体验
 
-当生成失败时，Stella 会向同一目标发送一条简短文本提示，避免“无响应”的体验。
+当生成失败时，Stella 会尝试向同一目标发送一条简短文本提示；在发送链路可用时可避免“无响应”的体验。
 
 常见提示场景：
 - 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY`）

@@ -105,6 +105,21 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
   });
 
   try {
+    const sendGeneratedMedia = async (media: string): Promise<void> => {
+      try {
+        await sendImage({
+          channel: args.channel,
+          target: args.target,
+          media,
+          message: args.caption,
+          gatewayToken,
+          gatewayUrl,
+        });
+      } catch (err) {
+        throw asStellaError("openclaw", err);
+      }
+    };
+
     if (provider === "gemini") {
       const results = await generateWithGemini({
         prompt: args.prompt,
@@ -114,14 +129,7 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       });
 
       for (const result of results) {
-        await sendImage({
-          channel: args.channel,
-          target: args.target,
-          media: result.outputPath,
-          message: args.caption,
-          gatewayToken,
-          gatewayUrl,
-        });
+        await sendGeneratedMedia(result.outputPath);
       }
     } else {
       // fal provider: reference images must be HTTP/HTTPS URLs
@@ -138,31 +146,29 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       });
 
       for (const result of results) {
-        await sendImage({
-          channel: args.channel,
-          target: args.target,
-          media: result.imageUrl,
-          message: args.caption,
-          gatewayToken,
-          gatewayUrl,
-        });
+        await sendGeneratedMedia(result.imageUrl);
       }
     }
   } catch (err) {
     const stellaErr = asStellaError(provider, err);
     const failureMessage = formatFailureMessage(stellaErr.details);
-    try {
-      await sendMessage({
-        channel: args.channel,
-        target: args.target,
-        message: failureMessage,
-        gatewayToken,
-        gatewayUrl,
-      });
-    } catch (notifyErr) {
-      const notifyMsg =
-        (notifyErr as Error)?.message || String(notifyErr);
-      console.warn(`[stella] Failed to notify channel about generation error: ${notifyMsg}`);
+
+    // Only attempt proactive failure notification for generation/provider errors.
+    // If sending path itself fails, a second notification on the same path is unlikely to succeed.
+    if (stellaErr.details.provider !== "openclaw") {
+      try {
+        await sendMessage({
+          channel: args.channel,
+          target: args.target,
+          message: failureMessage,
+          gatewayToken,
+          gatewayUrl,
+        });
+      } catch (notifyErr) {
+        const notifyMsg =
+          (notifyErr as Error)?.message || String(notifyErr);
+        console.warn(`[stella] Failed to notify channel about generation error: ${notifyMsg}`);
+      }
     }
 
     throw stellaErr;

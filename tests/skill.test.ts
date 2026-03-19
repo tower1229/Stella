@@ -103,4 +103,25 @@ describe("runSkill", () => {
     });
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
   });
+
+  it("maps sendImage failures to openclaw errors and skips failure notification", async () => {
+    mockGenerateWithGemini.mockResolvedValue([
+      {
+        outputPath: "/tmp/out-1.png",
+        mimeType: "image/png",
+        imageData: Buffer.from("x"),
+      },
+    ]);
+    mockSendImage.mockRejectedValue(new Error("gateway unavailable"));
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toMatchObject({
+      name: "StellaError",
+      details: expect.objectContaining({
+        provider: "openclaw",
+        code: "SEND_FAILED",
+      }),
+    });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
 });

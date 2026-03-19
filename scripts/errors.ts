@@ -209,6 +209,27 @@ export function normalizeGeminiError(err: unknown): StellaErrorDetails {
     };
   }
 
+  if (
+    lower.includes("econnreset") ||
+    lower.includes("etimedout") ||
+    lower.includes("fetch failed") ||
+    lower.includes("network") ||
+    lower.includes("socket hang up") ||
+    lower.includes("eai_again") ||
+    lower.includes("enotfound")
+  ) {
+    return {
+      provider: "gemini",
+      code: "UPSTREAM_UNAVAILABLE",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：网络或上游服务暂时不可用。",
+      actionHint: "请稍后重试。",
+      statusCode: status,
+      rawMessage: message,
+    };
+  }
+
   if (status === 500 || status === 503 || lower.includes("unavailable") || lower.includes("internal")) {
     return {
       provider: "gemini",

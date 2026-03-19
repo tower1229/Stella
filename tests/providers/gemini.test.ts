@@ -298,4 +298,33 @@ describe("generateWithGemini", () => {
       }),
     });
   });
+
+  it("retries on transient network errors without status", async () => {
+    const fakeImageData = Buffer.from("x").toString("base64");
+    const networkErr = new Error("fetch failed: ECONNRESET");
+    const { GoogleGenAI } = await import("@google/genai");
+    const mockGenerateContent = vi
+      .fn()
+      .mockRejectedValueOnce(networkErr)
+      .mockResolvedValue(makeGeminiResponse([makeImagePart(fakeImageData)]));
+    vi.mocked(GoogleGenAI).mockImplementation(
+      () =>
+        ({
+          models: { generateContent: mockGenerateContent },
+        }) as any
+    );
+
+    mockFs.writeFileSync.mockImplementation(() => {});
+
+    const { generateWithGemini } = await getModule();
+    const results = await generateWithGemini({
+      prompt: "test",
+      referenceImages: [],
+      resolution: "1K",
+      count: 1,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+  });
 });

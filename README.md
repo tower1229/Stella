@@ -108,7 +108,7 @@ Once configured, use natural language with your OpenClaw agent:
 
 ## Failure Experience
 
-When generation fails, Stella always sends a short text notification to the same target, so users are not left with a silent failure.
+When generation fails, Stella attempts to send a short text notification to the same target, so users are not left with a silent failure whenever the channel is reachable.
 
 Typical failure messages include:
 - Missing credentials (`GEMINI_API_KEY` / `FAL_KEY`)
