@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as fs from "fs";
 
 const mockParseIdentity = vi.fn();
 const mockSelectAvatars = vi.fn();
@@ -27,6 +28,9 @@ vi.mock("../scripts/sender", () => ({
   sendImage: mockSendImage,
   sendMessage: mockSendMessage,
 }));
+
+vi.mock("fs");
+const mockFs = vi.mocked(fs);
 
 async function getModule() {
   const mod = await import("../scripts/skill");
@@ -60,6 +64,8 @@ describe("runSkill", () => {
     mockGenerateWithFal.mockResolvedValue([]);
     mockSendImage.mockResolvedValue(undefined);
     mockSendMessage.mockResolvedValue(undefined);
+    mockFs.existsSync.mockReturnValue(true);
+    mockFs.readdirSync.mockReturnValue([]);
   });
 
   it("keeps success path unchanged and sends images", async () => {
@@ -123,5 +129,42 @@ describe("runSkill", () => {
       }),
     });
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("stops generation and guides user when AvatarsDir check fails", async () => {
+    mockParseIdentity.mockReturnValue({
+      avatar: null,
+      avatarsDir: "/bad/avatars",
+      avatarsURLs: ["https://cdn.example.com/ref1.jpg"],
+    });
+    mockFs.existsSync.mockImplementation((p: fs.PathLike) => p !== "/bad/avatars");
+
+    const { runSkill } = await getModule();
+    await runSkill(makeArgv());
+
+    expect(mockGenerateWithGemini).not.toHaveBeenCalled();
+    expect(mockGenerateWithFal).not.toHaveBeenCalled();
+    expect(mockSendImage).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][0].message).toContain("参考图目录读取失败");
+  });
+
+  it("stops fal generation and guides user when AvatarsURLs is not configured", async () => {
+    process.env.Provider = "fal";
+    mockParseIdentity.mockReturnValue({
+      avatar: null,
+      avatarsDir: null,
+      avatarsURLs: [],
+    });
+
+    const { runSkill } = await getModule();
+    await runSkill(makeArgv());
+
+    expect(mockGenerateWithFal).not.toHaveBeenCalled();
+    expect(mockGenerateWithGemini).not.toHaveBeenCalled();
+    expect(mockSendImage).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsURLs");
+    expect(mockSendMessage.mock.calls[0][0].message).toContain("http/https");
   });
 });

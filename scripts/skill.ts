@@ -6,6 +6,7 @@
 
 import * as path from "path";
 import * as os from "os";
+import * as fs from "fs";
 
 import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
@@ -24,6 +25,37 @@ interface CliArgs {
   caption: string;
   resolution: Resolution;
   count: number;
+}
+
+function hasConfiguredAvatarsDirFailure(options: {
+  avatarsDir: string | null;
+  avatarBlendEnabled: boolean;
+}): boolean {
+  const { avatarsDir, avatarBlendEnabled } = options;
+  if (!avatarBlendEnabled || !avatarsDir) return false;
+  if (!fs.existsSync(avatarsDir)) return true;
+  try {
+    fs.readdirSync(avatarsDir);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function getReferenceConfigGuideMessage(provider: Provider): string {
+  if (provider === "fal") {
+    return [
+      "我暂时不能生成图片：参考图配置不完整。",
+      "请在 ~/.openclaw/workspace/IDENTITY.md 中正确配置 AvatarsURLs（多个 URL 用逗号分隔，且必须是可公开访问的 http/https 图片地址）。",
+      "示例：AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg",
+    ].join("\n");
+  }
+
+  return [
+    "我暂时不能生成图片：参考图目录读取失败。",
+    "请检查 ~/.openclaw/workspace/IDENTITY.md 中的 AvatarsDir 是否存在且可读取，并放入同一角色的参考图。",
+    "示例：AvatarsDir: ./avatars",
+  ].join("\n");
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -103,6 +135,25 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     avatarMaxRefs,
     avatarBlendEnabled,
   });
+
+  const avatarsDirCheckFailed = hasConfiguredAvatarsDirFailure({
+    avatarsDir: identity.avatarsDir,
+    avatarBlendEnabled,
+  });
+  const missingFalAvatarUrls = provider === "fal" && identity.avatarsURLs.length === 0;
+  if (avatarsDirCheckFailed || missingFalAvatarUrls) {
+    const message = getReferenceConfigGuideMessage(
+      missingFalAvatarUrls ? "fal" : "gemini"
+    );
+    await sendMessage({
+      channel: args.channel,
+      target: args.target,
+      message,
+      gatewayToken,
+      gatewayUrl,
+    });
+    return;
+  }
 
   try {
     const sendGeneratedMedia = async (media: string): Promise<void> => {
