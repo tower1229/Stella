@@ -116,6 +116,14 @@ After the script completes, confirm to the user:
 | `FAL_KEY` | Required (if Provider=fal) | fal.ai API key |
 | `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
 
+## Media File Handling (Gemini)
+
+When `Provider=gemini`, Stella writes generated files to:
+
+- `~/.openclaw/workspace/stella-selfie/`
+
+After successful send, Stella deletes the local file immediately. If send fails, the file is kept for debugging.
+
 ## Skill Environment Options
 
 Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.env`:

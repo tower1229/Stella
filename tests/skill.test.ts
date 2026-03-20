@@ -64,6 +64,7 @@ describe("runSkill", () => {
     mockGenerateWithFal.mockResolvedValue([]);
     mockSendImage.mockResolvedValue(undefined);
     mockSendMessage.mockResolvedValue(undefined);
+    mockFs.unlinkSync.mockImplementation(() => undefined);
     mockFs.existsSync.mockReturnValue(true);
     mockFs.readdirSync.mockReturnValue([]);
   });
@@ -81,7 +82,32 @@ describe("runSkill", () => {
     await runSkill(makeArgv());
 
     expect(mockSendImage).toHaveBeenCalledTimes(1);
+    expect(mockFs.unlinkSync).toHaveBeenCalledWith("/tmp/out-1.png");
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not fail when generated file cleanup fails", async () => {
+    mockGenerateWithGemini.mockResolvedValue([
+      {
+        outputPath: "/tmp/out-1.png",
+        mimeType: "image/png",
+        imageData: Buffer.from("x"),
+      },
+    ]);
+    mockFs.unlinkSync.mockImplementation(() => {
+      throw new Error("permission denied");
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await runSkill(makeArgv());
+
+    expect(mockSendImage).toHaveBeenCalledTimes(1);
+    expect(mockFs.unlinkSync).toHaveBeenCalledWith("/tmp/out-1.png");
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to remove generated file")
+    );
+    warnSpy.mockRestore();
   });
 
   it("sends failure notification message when generation fails", async () => {

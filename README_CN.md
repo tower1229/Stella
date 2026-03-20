@@ -125,6 +125,17 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 - 安全拦截（建议改写提示词）
 - fal 参考图 URL 不可访问（需公开 `http/https` 图片地址）
 
+## 媒体文件处理（Gemini）
+
+当 `Provider=gemini` 时，生成图片会写入：
+
+- `~/.openclaw/workspace/stella-selfie/`
+
+每张图片发送成功后，Stella 会立即删除该本地文件。
+
+- 若发送失败，文件会保留用于排障。
+- 若删除失败，Stella 仅记录 warning 并继续流程。
+
 ## 直接脚本测试（不走 OpenClaw）
 
 如果你想直接运行脚本测试（不通过 OpenClaw），需要自己提供环境变量（因为 OpenClaw 平时会在运行时注入）。

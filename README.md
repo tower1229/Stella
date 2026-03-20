@@ -125,6 +125,17 @@ Typical failure messages include:
 - Safety block (prompt rewrite recommended)
 - fal reference URL issues (public `http/https` URL required)
 
+## Media File Handling (Gemini)
+
+When `Provider=gemini`, generated images are written to:
+
+- `~/.openclaw/workspace/stella-selfie/`
+
+After each image is sent successfully, Stella immediately removes the local file.
+
+- If send fails, the file is kept for debugging.
+- If cleanup fails, Stella logs a warning and continues.
+
 ## Direct Script Testing
 
 Test the script directly without going through OpenClaw. Since OpenClaw normally injects environment variables at runtime, you need to load them manually for local testing.

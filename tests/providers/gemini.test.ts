@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 vi.mock("fs");
 vi.mock("@google/genai", () => ({
@@ -88,6 +90,11 @@ describe("generateWithGemini", () => {
     expect(results).toHaveLength(1);
     expect(results[0].mimeType).toBe("image/png");
     expect(results[0].imageData).toBeInstanceOf(Buffer);
+    expect(results[0].outputPath).toContain("stella-selfie");
+    expect(mockFs.mkdirSync).toHaveBeenCalledWith(
+      path.join(os.homedir(), ".openclaw", "workspace", "stella-selfie"),
+      { recursive: true }
+    );
 
     // Verify text-to-image: contents should be a single text part
     const callArgs = mockGenerateContent.mock.calls[0][0];
