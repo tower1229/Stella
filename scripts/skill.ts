@@ -181,6 +181,15 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
 
       for (const result of results) {
         await sendGeneratedMedia(result.outputPath);
+        try {
+          fs.unlinkSync(result.outputPath);
+        } catch (cleanupErr) {
+          const cleanupMsg =
+            (cleanupErr as Error)?.message || String(cleanupErr);
+          console.warn(
+            `[stella] Failed to remove generated file: ${result.outputPath} (${cleanupMsg})`
+          );
+        }
       }
     } else {
       // fal provider: reference images must be HTTP/HTTPS URLs

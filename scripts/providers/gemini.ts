@@ -4,6 +4,12 @@ import * as os from "os";
 import { asStellaError, shouldRetryGemini } from "../errors";
 
 const MODEL = "gemini-3.1-flash-image-preview";
+const STELLA_SELFIE_DIR = path.join(
+  os.homedir(),
+  ".openclaw",
+  "workspace",
+  "stella-selfie"
+);
 
 export type Resolution = "1K" | "2K" | "4K";
 
@@ -94,7 +100,7 @@ export async function generateWithGemini(
   const contents = buildContents(prompt, referenceImages);
 
   const results: GeminiResult[] = [];
-  const tmpDir = os.tmpdir();
+  fs.mkdirSync(STELLA_SELFIE_DIR, { recursive: true });
 
   for (let i = 0; i < count; i++) {
     const generateConfig = {
@@ -207,7 +213,7 @@ export async function generateWithGemini(
     // Use process.hrtime for sub-millisecond uniqueness when count > 1
     const [, ns] = process.hrtime();
     const outputPath = path.join(
-      tmpDir,
+      STELLA_SELFIE_DIR,
       `stella-${Date.now()}-${ns}-${i}.${ext}`
     );
     fs.writeFileSync(outputPath, imageData);
