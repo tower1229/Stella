@@ -24,10 +24,15 @@ function parseArgs(argv: string[]): {
   };
 
   const outdir = get("--outdir") || "./out";
-  const providerRaw = (get("--provider") || process.env.Provider || "gemini").toLowerCase();
+  const providerRaw = (
+    get("--provider") ||
+    process.env.Provider ||
+    "gemini"
+  ).toLowerCase();
   const provider = providerRaw as SmokeProvider;
   const avatarsDir = get("--avatars-dir") || "./smoke/avatars";
-  const avatarMaxRefsEnv = process.env.AvatarMaxRefs || process.env.AVATAR_MAX_REFS;
+  const avatarMaxRefsEnv =
+    process.env.AvatarMaxRefs || process.env.AVATAR_MAX_REFS;
   const avatarMaxRefsRaw = get("--avatar-max-refs") || avatarMaxRefsEnv || "3";
   const avatarMaxRefs = Math.max(1, parseInt(avatarMaxRefsRaw, 10) || 3);
 
@@ -75,15 +80,19 @@ function loadDotEnvLocalIfPresent(): void {
   }
 }
 
-const SMOKE_CASES: Array<{ name: string; prompt: string; resolution: Resolution }> = [
+const SMOKE_CASES: Array<{
+  name: string;
+  prompt: string;
+  resolution: Resolution;
+}> = [
   {
-    name: "01-red-dress",
-    prompt: "Send me a selfie wearing a red dress",
+    name: "01-dress",
+    prompt: "想看你穿白色短连衣裙",
     resolution: "1K",
   },
   {
     name: "02-selfie",
-    prompt: "给我发一张健身房里的自拍！",
+    prompt: "发一张健身房里的自拍！",
     resolution: "1K",
   },
 ];
@@ -203,7 +212,9 @@ async function main(): Promise<void> {
   ensureDir(outdir);
 
   if (provider !== "gemini" && provider !== "fal") {
-    throw new Error(`Unsupported provider for smoke test: ${provider}. Use "gemini" or "fal".`);
+    throw new Error(
+      `Unsupported provider for smoke test: ${provider}. Use "gemini" or "fal".`,
+    );
   }
 
   console.log(`[smoke] Provider: ${provider}`);
