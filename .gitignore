@@ -4,14 +4,7 @@ sandbox/
 # Local credentials - never commit
 .env.local
 .env
-
-# Local avatar assets - managed on remote workspace
-avatars/
-*.jpg
-*.jpeg
-*.png
-*.webp
-*.gif
+out/
 
 # Build artifacts
 *.js.map

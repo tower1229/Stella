@@ -74,9 +74,14 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
     avatarBlendEnabled: true,
   });
 
-  console.log(
-    `[smoke] Reference images: ${referenceImages.length > 0 ? referenceImages.join(", ") : "(none — text-to-image mode)"}`,
-  );
+  if (referenceImages.length === 0) {
+    const resolvedDir = path.resolve(process.cwd(), avatarsDir);
+    throw new Error(
+      `No reference images found. Add .jpg/.jpeg/.png/.webp under "${avatarsDir}" (resolved: ${resolvedDir}), or pass --avatars-dir.`,
+    );
+  }
+
+  console.log(`[smoke] Reference images: ${referenceImages.join(", ")}`);
 
   const cases: Array<{ name: string; prompt: string; resolution: Resolution }> =
     [

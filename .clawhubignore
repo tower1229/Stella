@@ -1,16 +1,48 @@
+# ClawHub: exclude everything that is not needed to run
+#   npx ts-node {baseDir}/scripts/skill.ts
+# Shipped: SKILL.md, package.json, tsconfig.json, scripts/{skill,identity,avatars,sender,errors,providers/*}.ts, templates/**
+
+# Dependencies & artifacts
 node_modules/
 dist/
-sandbox/
-.env.local
+coverage/
+
+# Secrets & local overrides
 .env
-docs/
+.env.*
+
+# VCS, editor, OS noise
+.git/
+.github/
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+**/.DS_Store
+
+# Maintainer-only scripts (not the skill entrypoint)
+scripts/smoke.ts
+scripts/release-clawhub.mjs
+
+# Tests, internal docs, publish metadata
 tests/
-tsconfig.json
+docs/
+.gitignore
+.clawhubignore
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-.gitignore
-.DS_Store
+
+# Repo readme (SKILL.md is the hub-facing contract)
+/README.md
+/README_CN.md
+
+# Local dev trees & smoke output
+sandbox/
+smoke/
+out/
+
+# User reference photos / stray binaries (never bundle)
 avatars/
 *.jpg
 *.jpeg
