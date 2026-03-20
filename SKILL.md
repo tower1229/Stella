@@ -1,14 +1,17 @@
 ---
 name: stella-selfie
 description: Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini and fal providers, multi-reference avatar blending.
-allowed-tools: Bash(npm:*) Bash(npx:*) Bash(openclaw:*) Bash(curl:*) Read Write
+allowed-tools: Bash(npm:*) Bash(node:*) Bash(openclaw:*) Read Write
 metadata:
   openclaw:
     requires:
       env:
+        - GEMINI_API_KEY
+        - FAL_KEY
         - OPENCLAW_GATEWAY_TOKEN
       bins:
-        - npx
+        - node
+        - openclaw
     primaryEnv: GEMINI_API_KEY
     emoji: "📸"
     homepage: https://github.com/tower1229/Stella
@@ -81,7 +84,7 @@ Determine from the user's message:
 Run the Stella script:
 
 ```bash
-npx ts-node {baseDir}/scripts/skill.ts \
+node {baseDir}/dist/scripts/skill.js \
   --prompt "<ASSEMBLED_PROMPT>" \
   --target "<TARGET_CHANNEL>" \
   --channel "<CHANNEL_PROVIDER>" \
@@ -119,6 +122,12 @@ After the script completes, confirm to the user:
 | `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key       |
 | `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key              |
 | `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
+
+Credential requirements are provider-specific:
+
+- Default `Provider=gemini`: requires `GEMINI_API_KEY`
+- `Provider=fal`: requires `FAL_KEY`
+- Sending path always requires `OPENCLAW_GATEWAY_TOKEN`
 
 ## Media File Handling (Gemini)
 

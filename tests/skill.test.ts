@@ -55,6 +55,10 @@ describe("runSkill", () => {
     vi.resetModules();
     vi.clearAllMocks();
     process.env.Provider = "gemini";
+    process.env.GEMINI_API_KEY = "test-gemini-key";
+    process.env.FAL_KEY = "test-fal-key";
+    process.env.OPENCLAW_GATEWAY_TOKEN = "test-gateway-token";
+    process.env.OPENCLAW_GATEWAY_URL = "http://localhost:18789";
     mockParseIdentity.mockReturnValue({
       avatar: null,
       avatarsDir: null,
@@ -68,6 +72,14 @@ describe("runSkill", () => {
     mockFs.existsSync.mockReturnValue(true);
     mockFs.readdirSync.mockReturnValue([]);
   });
+
+  function mockProcessExit() {
+    return vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: string | number | null | undefined) => {
+        throw new Error(`process.exit:${code}`);
+      }) as never);
+  }
 
   it("keeps success path unchanged and sends images", async () => {
     mockGenerateWithGemini.mockResolvedValue([
@@ -192,5 +204,35 @@ describe("runSkill", () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
     expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsURLs");
     expect(mockSendMessage.mock.calls[0][0].message).toContain("http/https");
+  });
+
+  it("fails fast when GEMINI_API_KEY is missing", async () => {
+    delete process.env.GEMINI_API_KEY;
+    const exitSpy = mockProcessExit();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("GEMINI_API_KEY is not set"));
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("fails fast when OPENCLAW_GATEWAY_TOKEN is missing", async () => {
+    delete process.env.OPENCLAW_GATEWAY_TOKEN;
+    const exitSpy = mockProcessExit();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("OPENCLAW_GATEWAY_TOKEN is not set")
+    );
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 });

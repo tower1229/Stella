@@ -155,6 +155,10 @@ if (!skipTest) {
 }
 
 // eslint-disable-next-line no-console
+console.log("[release] Building dist artifacts...");
+run("npm", ["run", "build"]);
+
+// eslint-disable-next-line no-console
 console.log("[release] Publishing to ClawHub...");
 
 // Pin workdir to this repo root. clawhub resolves workdir to OpenClaw/Clawdbot default workspace when cwd

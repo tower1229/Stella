@@ -49,6 +49,11 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
 | `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
+>
+> **Credential rules**:
+> - Default `Provider=gemini`: requires `GEMINI_API_KEY`
+> - `Provider=fal`: requires `FAL_KEY`
+> - Sending always requires `OPENCLAW_GATEWAY_TOKEN`
 
 ### 2. IDENTITY.md
 
@@ -136,6 +141,13 @@ After each image is sent successfully, Stella immediately removes the local file
 - If send fails, the file is kept for debugging.
 - If cleanup fails, Stella logs a warning and continues.
 
+## Security Notes
+
+- Stella reads local profile files from `~/.openclaw/workspace/IDENTITY.md` and `~/.openclaw/workspace/avatars/`.
+- Generated files are written to `~/.openclaw/workspace/stella-selfie/` and removed only after successful send.
+- Message delivery uses `openclaw message send` first, then falls back to HTTP gateway (`OPENCLAW_GATEWAY_URL`, default `http://localhost:18789`).
+- For non-localhost gateway endpoints, use `https://` and trusted hosts only.
+
 ## Direct Script Testing
 
 Test the script directly without going through OpenClaw. Since OpenClaw normally injects environment variables at runtime, you need to load them manually for local testing.
@@ -143,6 +155,12 @@ Test the script directly without going through OpenClaw. Since OpenClaw normally
 ```bash
 # Install dependencies
 npm install
+
+# Build runtime artifacts
+npm run build
+
+# Run the skill runtime directly
+node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "telegram"
 
 # Smoke test: real API calls, saves images to ./out
 npm run smoke

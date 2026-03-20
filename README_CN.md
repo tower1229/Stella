@@ -49,6 +49,11 @@ clawhub install stella-selfie
 | `AvatarMaxRefs` | `3` | 最多融合多少张参考图 |
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
+>
+> **凭证规则**：
+> - 默认 `Provider=gemini`：必须配置 `GEMINI_API_KEY`
+> - `Provider=fal`：必须配置 `FAL_KEY`
+> - 任意发送路径都需要 `OPENCLAW_GATEWAY_TOKEN`
 
 ### 2. IDENTITY.md
 
@@ -136,6 +141,13 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 - 若发送失败，文件会保留用于排障。
 - 若删除失败，Stella 仅记录 warning 并继续流程。
 
+## 安全说明
+
+- Stella 会读取 `~/.openclaw/workspace/IDENTITY.md` 与 `~/.openclaw/workspace/avatars/` 下的本地参考资料。
+- 生成图片写入 `~/.openclaw/workspace/stella-selfie/`，仅在发送成功后删除。
+- 发送链路为 `openclaw message send` 优先，失败后回退 HTTP 网关（`OPENCLAW_GATEWAY_URL`，默认 `http://localhost:18789`）。
+- 若网关不是 localhost，请使用 `https://` 且仅指向可信地址。
+
 ## 直接脚本测试（不走 OpenClaw）
 
 如果你想直接运行脚本测试（不通过 OpenClaw），需要自己提供环境变量（因为 OpenClaw 平时会在运行时注入）。
@@ -143,6 +155,12 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 ```bash
 # 安装依赖
 npm install
+
+# 构建运行产物
+npm run build
+
+# 直接运行 skill 主入口
+node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "telegram"
 
 # Smoke 测试：真实调用 API，并把图片保存到 ./out
 npm run smoke

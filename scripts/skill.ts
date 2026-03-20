@@ -27,6 +27,40 @@ interface CliArgs {
   count: number;
 }
 
+function getMissingProviderCredential(provider: Provider): string | null {
+  if (provider === "gemini" && !process.env.GEMINI_API_KEY) return "GEMINI_API_KEY";
+  if (provider === "fal" && !process.env.FAL_KEY) return "FAL_KEY";
+  return null;
+}
+
+function validateGatewayConfig(options: { gatewayToken?: string; gatewayUrl: string }): void {
+  const { gatewayToken, gatewayUrl } = options;
+  if (!gatewayToken || !gatewayToken.trim()) {
+    throw new Error(
+      "OPENCLAW_GATEWAY_TOKEN is not set. Configure it in OpenClaw skills.entries.stella-selfie.env."
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(gatewayUrl);
+  } catch {
+    throw new Error(
+      `OPENCLAW_GATEWAY_URL is invalid: "${gatewayUrl}". Expected format like http://localhost:18789.`
+    );
+  }
+
+  const isLocalhost =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "::1";
+  if (!isLocalhost && parsed.protocol !== "https:") {
+    console.warn(
+      `[stella] OPENCLAW_GATEWAY_URL uses non-HTTPS for non-localhost endpoint: ${gatewayUrl}`
+    );
+  }
+}
+
 function hasConfiguredAvatarsDirFailure(options: {
   avatarsDir: string | null;
   avatarBlendEnabled: boolean;
@@ -121,9 +155,33 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     process.exit(1);
   }
 
+  const missingCredential = getMissingProviderCredential(provider);
+  if (missingCredential) {
+    console.error(
+      `[stella] ${missingCredential} is not set. Configure it in OpenClaw skills.entries.stella-selfie.env.`
+    );
+    process.exit(1);
+  }
+
+  try {
+    validateGatewayConfig({ gatewayToken, gatewayUrl });
+  } catch (err) {
+    console.error(`[stella] ${(err as Error).message}`);
+    process.exit(1);
+  }
+
   // Parse identity from the OpenClaw workspace on this machine
   const workspaceRoot = path.join(os.homedir(), ".openclaw", "workspace");
-  const identity = parseIdentity(workspaceRoot);
+  let identity: ReturnType<typeof parseIdentity>;
+  try {
+    identity = parseIdentity(workspaceRoot);
+  } catch (err) {
+    const msg = (err as Error)?.message || String(err);
+    console.error(
+      `[stella] Failed to read identity config from ${workspaceRoot}: ${msg}. Configure ~/.openclaw/workspace/IDENTITY.md first.`
+    );
+    process.exit(1);
+  }
 
   const envMaxRefs = process.env.AvatarMaxRefs ? parseInt(process.env.AvatarMaxRefs, 10) : null;
   const avatarMaxRefs =
