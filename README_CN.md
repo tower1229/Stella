@@ -2,6 +2,10 @@
 
 生成**人设一致**的自拍图片，并通过 OpenClaw 发送到任意频道。支持 Google Gemini 与 fal（xAI Grok Imagine）两种 provider，并支持多参考图（avatar blending）以增强角色一致性。
 
+## Protocol
+
+- `docs/protocol.md`：`stella-selfie` 最终输入/输出契约（v1）
+
 ## 安装
 
 ```bash

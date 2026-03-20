@@ -2,6 +2,10 @@
 
 Generate persona-consistent selfie images and send them to any OpenClaw channel. Supports Google Gemini and fal (xAI Grok Imagine) providers with multi-reference avatar blending.
 
+## Protocol
+
+- `docs/protocol.md`: `stella-selfie` final I/O contract (v1)
+
 ## Installation
 
 ```bash
