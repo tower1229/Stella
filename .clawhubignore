@@ -1,10 +1,9 @@
 # ClawHub: exclude everything that is not needed to run
-#   npx ts-node {baseDir}/scripts/skill.ts
-# Shipped: SKILL.md, package.json, tsconfig.json, scripts/{skill,identity,avatars,sender,errors,providers/*}.ts, templates/**
+#   node {baseDir}/dist/scripts/skill.js
+# Shipped: SKILL.md, package.json, dist/**, templates/**
 
 # Dependencies & artifacts
 node_modules/
-dist/
 coverage/
 
 # Secrets & local overrides

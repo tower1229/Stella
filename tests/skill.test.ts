@@ -235,4 +235,35 @@ describe("runSkill", () => {
     errorSpy.mockRestore();
     exitSpy.mockRestore();
   });
+
+  it("fails fast when FAL_KEY is missing under fal provider", async () => {
+    process.env.Provider = "fal";
+    delete process.env.FAL_KEY;
+    const exitSpy = mockProcessExit();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("FAL_KEY is not set"));
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("fails fast when OPENCLAW_GATEWAY_URL is invalid", async () => {
+    process.env.OPENCLAW_GATEWAY_URL = "not-a-url";
+    const exitSpy = mockProcessExit();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("OPENCLAW_GATEWAY_URL is invalid")
+    );
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
 });

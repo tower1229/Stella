@@ -106,7 +106,7 @@ function parseArgs(argv: string[]): CliArgs {
 
   if (!prompt || !target || !channel) {
     console.error(`
-Usage: npx ts-node scripts/skill.ts \\
+Usage: node dist/scripts/skill.js \\
   --prompt "<assembled prompt>" \\
   --target "<channel destination>" \\
   --channel "<channel provider>" \\
