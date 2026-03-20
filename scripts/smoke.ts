@@ -3,14 +3,18 @@ import * as path from "path";
 
 import { selectAvatars } from "./avatars";
 import { generateWithGemini } from "./providers/gemini";
+import { generateWithFal } from "./providers/fal";
 
 type Resolution = "1K" | "2K" | "4K";
+type SmokeProvider = "gemini" | "fal";
 
 function parseArgs(argv: string[]): {
   outdir: string;
-  provider: "gemini";
+  provider: SmokeProvider;
   avatarsDir: string;
   avatarMaxRefs: number;
+  /** Parsed http(s) URLs for fal (same idea as IDENTITY.md AvatarsURLs). */
+  falAvatarUrls: string[];
 } {
   const args = argv.slice(2);
   const get = (flag: string): string | undefined => {
@@ -20,12 +24,20 @@ function parseArgs(argv: string[]): {
   };
 
   const outdir = get("--outdir") || "./out";
-  const provider = (get("--provider") || "gemini") as "gemini";
+  const providerRaw = (get("--provider") || process.env.Provider || "gemini").toLowerCase();
+  const provider = providerRaw as SmokeProvider;
   const avatarsDir = get("--avatars-dir") || "./smoke/avatars";
   const avatarMaxRefsEnv = process.env.AvatarMaxRefs || process.env.AVATAR_MAX_REFS;
   const avatarMaxRefsRaw = get("--avatar-max-refs") || avatarMaxRefsEnv || "3";
   const avatarMaxRefs = Math.max(1, parseInt(avatarMaxRefsRaw, 10) || 3);
-  return { outdir, provider, avatarsDir, avatarMaxRefs };
+
+  const falUrlsRaw = get("--avatar-urls") || process.env.AvatarsURLs || "";
+  const falAvatarUrls = falUrlsRaw
+    .split(",")
+    .map((u) => u.trim())
+    .filter((u) => u.startsWith("http://") || u.startsWith("https://"));
+
+  return { outdir, provider, avatarsDir, avatarMaxRefs, falAvatarUrls };
 }
 
 function ensureDir(dirPath: string): void {
@@ -63,6 +75,28 @@ function loadDotEnvLocalIfPresent(): void {
   }
 }
 
+const SMOKE_CASES: Array<{ name: string; prompt: string; resolution: Resolution }> = [
+  {
+    name: "01-red-dress",
+    prompt: "Send me a selfie wearing a red dress",
+    resolution: "1K",
+  },
+  {
+    name: "02-selfie",
+    prompt: "给我发一张健身房里的自拍！",
+    resolution: "1K",
+  },
+];
+
+async function downloadUrlToFile(url: string, destPath: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  fs.writeFileSync(destPath, buf);
+}
+
 async function runGeminiSmoke(outdir: string): Promise<void> {
   const avatarsDir = parsedArgs.avatarsDir;
   const avatarMaxRefs = parsedArgs.avatarMaxRefs;
@@ -83,23 +117,9 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
 
   console.log(`[smoke] Reference images: ${referenceImages.join(", ")}`);
 
-  const cases: Array<{ name: string; prompt: string; resolution: Resolution }> =
-    [
-      {
-        name: "01-red-dress",
-        prompt: "Send me a selfie wearing a red dress",
-        resolution: "1K",
-      },
-      {
-        name: "02-selfie",
-        prompt: "给我发一张健身房里的自拍！",
-        resolution: "1K",
-      },
-    ];
-
   const failures: Array<{ name: string; error: string }> = [];
 
-  for (const c of cases) {
+  for (const c of SMOKE_CASES) {
     console.log(`[smoke] Running: ${c.name} (${c.resolution})`);
     try {
       const results = await generateWithGemini({
@@ -123,7 +143,52 @@ async function runGeminiSmoke(outdir: string): Promise<void> {
   }
 
   if (failures.length > 0) {
-    console.error(`[smoke] Failures: ${failures.length}/${cases.length}`);
+    console.error(`[smoke] Failures: ${failures.length}/${SMOKE_CASES.length}`);
+    for (const f of failures) {
+      console.error(`[smoke] - ${f.name}: ${f.error}`);
+    }
+    process.exitCode = 1;
+  }
+}
+
+async function runFalSmoke(outdir: string): Promise<void> {
+  const avatarMaxRefs = parsedArgs.avatarMaxRefs;
+  const referenceImageUrls = parsedArgs.falAvatarUrls.slice(0, avatarMaxRefs);
+
+  if (referenceImageUrls.length === 0) {
+    throw new Error(
+      'No reference URLs for fal. Pass --avatar-urls "https://...,https://..." or set AvatarsURLs (comma-separated http/https URLs), same as IDENTITY.md.',
+    );
+  }
+
+  console.log(`[smoke] Reference URLs: ${referenceImageUrls.join(", ")}`);
+
+  const failures: Array<{ name: string; error: string }> = [];
+
+  for (const c of SMOKE_CASES) {
+    console.log(`[smoke] Running: ${c.name} (${c.resolution})`);
+    try {
+      const results = await generateWithFal({
+        prompt: c.prompt,
+        referenceImageUrls,
+        resolution: c.resolution,
+        count: 1,
+      });
+
+      const r = results[0];
+      const filename = `${c.name}-${Date.now()}.jpg`;
+      const outPath = path.join(outdir, filename);
+      await downloadUrlToFile(r.imageUrl, outPath);
+      console.log(`[smoke] Saved: ${outPath}`);
+    } catch (err) {
+      const msg = (err as Error)?.message || String(err);
+      console.error(`[smoke] Failed: ${c.name}: ${msg}`);
+      failures.push({ name: c.name, error: msg });
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error(`[smoke] Failures: ${failures.length}/${SMOKE_CASES.length}`);
     for (const f of failures) {
       console.error(`[smoke] - ${f.name}: ${f.error}`);
     }
@@ -137,15 +202,20 @@ async function main(): Promise<void> {
   const { outdir, provider, avatarsDir, avatarMaxRefs } = parsedArgs;
   ensureDir(outdir);
 
-  if (provider !== "gemini") {
-    throw new Error(`Unsupported provider for smoke test: ${provider}`);
+  if (provider !== "gemini" && provider !== "fal") {
+    throw new Error(`Unsupported provider for smoke test: ${provider}. Use "gemini" or "fal".`);
   }
 
   console.log(`[smoke] Provider: ${provider}`);
   console.log(`[smoke] Outdir: ${outdir}`);
   console.log(`[smoke] AvatarsDir: ${avatarsDir}`);
   console.log(`[smoke] AvatarMaxRefs: ${avatarMaxRefs}`);
-  await runGeminiSmoke(outdir);
+
+  if (provider === "gemini") {
+    await runGeminiSmoke(outdir);
+  } else {
+    await runFalSmoke(outdir);
+  }
   console.log("[smoke] Done.");
 }
 
