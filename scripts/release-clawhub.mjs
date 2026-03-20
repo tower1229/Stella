@@ -157,7 +157,11 @@ if (!skipTest) {
 // eslint-disable-next-line no-console
 console.log("[release] Publishing to ClawHub...");
 
+// Pin workdir to this repo root. clawhub resolves workdir to OpenClaw/Clawdbot default workspace when cwd
+// has no .clawhub marker; then `publish .` runs against the wrong folder and fails with "SKILL.md required".
 const publishArgs = [
+  "--workdir",
+  ROOT_DIR,
   "publish",
   ".",
   "--slug",
