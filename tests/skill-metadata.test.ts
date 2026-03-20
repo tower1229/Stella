@@ -16,6 +16,14 @@ function extractRequiredEnv(skill: string): string[] {
   return env;
 }
 
+function hasNodeInstallSpec(skill: string, packageName: string): boolean {
+  const pattern = new RegExp(
+    `-\\s+kind:\\s+node\\s*\\n\\s+package:\\s+"${packageName.replace("/", "\\/")}"`,
+    "m"
+  );
+  return pattern.test(skill);
+}
+
 describe("SKILL metadata consistency", () => {
   it("declares all runtime credential env vars", () => {
     const skillPath = path.resolve(__dirname, "..", "SKILL.md");
@@ -25,5 +33,13 @@ describe("SKILL metadata consistency", () => {
     expect(env).toContain("GEMINI_API_KEY");
     expect(env).toContain("FAL_KEY");
     expect(env).toContain("OPENCLAW_GATEWAY_TOKEN");
+  });
+
+  it("declares node install specs for runtime SDKs", () => {
+    const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+    const skill = fs.readFileSync(skillPath, "utf-8");
+
+    expect(hasNodeInstallSpec(skill, "@google/genai")).toBe(true);
+    expect(hasNodeInstallSpec(skill, "@fal-ai/client")).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "stella-selfie",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini and fal providers, multi-reference avatar blending.",
   "keywords": [
     "openclaw",

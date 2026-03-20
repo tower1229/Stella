@@ -157,6 +157,12 @@ if (!skipTest) {
 // eslint-disable-next-line no-console
 console.log("[release] Building dist artifacts...");
 run("npm", ["run", "build"]);
+const distEntrypoint = path.join(ROOT_DIR, "dist", "scripts", "skill.js");
+if (!fs.existsSync(distEntrypoint)) {
+  // eslint-disable-next-line no-console
+  console.error(`[release] Build succeeded but runtime entrypoint is missing: ${distEntrypoint}`);
+  process.exit(1);
+}
 
 // eslint-disable-next-line no-console
 console.log("[release] Publishing to ClawHub...");

@@ -12,6 +12,11 @@ metadata:
       bins:
         - node
         - openclaw
+    install:
+      - kind: node
+        package: "@google/genai"
+      - kind: node
+        package: "@fal-ai/client"
     primaryEnv: GEMINI_API_KEY
     emoji: "📸"
     homepage: https://github.com/tower1229/Stella
