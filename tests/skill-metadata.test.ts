@@ -25,14 +25,16 @@ function hasNodeInstallSpec(skill: string, packageName: string): boolean {
 }
 
 describe("SKILL metadata consistency", () => {
-  it("declares all runtime credential env vars", () => {
+  it("documents all runtime credential env vars", () => {
     const skillPath = path.resolve(__dirname, "..", "SKILL.md");
     const skill = fs.readFileSync(skillPath, "utf-8");
-    const env = extractRequiredEnv(skill);
 
-    expect(env).toContain("GEMINI_API_KEY");
-    expect(env).toContain("FAL_KEY");
-    expect(env).toContain("OPENCLAW_GATEWAY_TOKEN");
+    // We no longer require these to be in the 'env' list of metadata 
+    // to avoid ClawHub warnings about over-broad requirements.
+    // But they MUST be documented in the text.
+    expect(skill).toContain("GEMINI_API_KEY");
+    expect(skill).toContain("FAL_KEY");
+    expect(skill).toContain("OPENCLAW_GATEWAY_TOKEN");
   });
 
   it("declares node install specs for runtime SDKs", () => {

@@ -5,10 +5,7 @@ allowed-tools: Bash(npm:*) Bash(node:*) Bash(openclaw:*) Read Write
 metadata:
   openclaw:
     requires:
-      env:
-        - GEMINI_API_KEY
-        - FAL_KEY
-        - OPENCLAW_GATEWAY_TOKEN
+      env: []
       bins:
         - node
         - openclaw

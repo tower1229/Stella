@@ -220,22 +220,6 @@ describe("runSkill", () => {
     exitSpy.mockRestore();
   });
 
-  it("fails fast when OPENCLAW_GATEWAY_TOKEN is missing", async () => {
-    delete process.env.OPENCLAW_GATEWAY_TOKEN;
-    const exitSpy = mockProcessExit();
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { runSkill } = await getModule();
-
-    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
-
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("OPENCLAW_GATEWAY_TOKEN is not set")
-    );
-    errorSpy.mockRestore();
-    exitSpy.mockRestore();
-  });
-
   it("fails fast when FAL_KEY is missing under fal provider", async () => {
     process.env.Provider = "fal";
     delete process.env.FAL_KEY;

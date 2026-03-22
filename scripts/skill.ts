@@ -34,12 +34,7 @@ function getMissingProviderCredential(provider: Provider): string | null {
 }
 
 function validateGatewayConfig(options: { gatewayToken?: string; gatewayUrl: string }): void {
-  const { gatewayToken, gatewayUrl } = options;
-  if (!gatewayToken || !gatewayToken.trim()) {
-    throw new Error(
-      "OPENCLAW_GATEWAY_TOKEN is not set. Configure it in OpenClaw skills.entries.stella-selfie.env."
-    );
-  }
+  const { gatewayUrl } = options;
 
   let parsed: URL;
   try {
