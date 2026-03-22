@@ -82,26 +82,6 @@ Place reference photos in `~/.openclaw/workspace/avatars/`:
 - Different styles, scenes, outfits, and expressions work best (as long as it’s the **same person with stable key traits**)
 - Images are selected by creation time (newest first), up to `AvatarMaxRefs` (configured via skill env)
 
-#### Best Practices (for best consistency)
-
-- **How many images**:
-  - Keep **3–8** reference photos for the same person in `avatars/`
-  - The skill blends up to `AvatarMaxRefs` (default `3`). You can raise it, but returns diminish
-- **Recommended sizes**:
-  - Prefer short side **≥ 768 px** (more reliable); avoid going below **512 px**
-  - Prefer **1:1** or **3:4 (portrait)**. Avoid very wide panoramas
-  - Don’t over-compress (blurred faces = weaker identity signal)
-- **Cropping & framing (most important)**:
-  - Include at least **one clean face-forward** reference (sharp, unobstructed: no sunglasses/mask/hand covering face)
-  - Aim for the face to occupy roughly **30%–60%** of the image height
-  - Avoid heavy beauty filters / extreme makeup changes across references
-- **Remove distractions**:
-  - Avoid group photos or any other clearly visible face (including reflections/posters), which can cause “face mixing”
-  - Avoid references dominated by strong stylization (big text overlays, stickers, extreme filters) unless you want that style locked in
-- **Identity vs style**:
-  - For “same person” fidelity, prioritize natural photos with consistent lighting and skin tones
-  - For “same art style,” add 1–2 style-heavy references, but be careful not to overwhelm identity cues
-
 ### 4. SOUL.md
 
 Copy/paste the block below into your `~/.openclaw/workspace/SOUL.md`:

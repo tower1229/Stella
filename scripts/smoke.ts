@@ -87,12 +87,12 @@ const SMOKE_CASES: Array<{
 }> = [
   {
     name: "01-dress",
-    prompt: "想看你穿白色短连衣裙",
+    prompt: "A mirror selfie of this person wearing a white short dress, showing full body reflection.",
     resolution: "1K",
   },
   {
     name: "02-selfie",
-    prompt: "发一张健身房里的自拍！",
+    prompt: "A selfie of this person back inside a gym, looking into the lens.",
     resolution: "1K",
   },
 ];

@@ -41,7 +41,7 @@ Generate persona-consistent selfie images using Google Gemini or fal (xAI Grok I
 Best for: outfit showcases, full-body shots, fashion content
 
 ```
-make a pic of this person, but [user's context]. the person is taking a mirror selfie
+A mirror selfie of this person, [user's context], showing full body reflection.
 ```
 
 ### Mode 2: Direct Selfie
@@ -49,7 +49,7 @@ make a pic of this person, but [user's context]. the person is taking a mirror s
 Best for: close-up portraits, location shots, emotional expressions
 
 ```
-a close-up selfie taken by herself at [user's context], direct eye contact with the camera, looking straight into the lens, eyes centered and clearly visible, not a mirror selfie, phone held at arm's length, face fully visible
+A selfie of this person, [user's context], looking into the lens.
 ```
 
 ### Mode Selection Logic
@@ -60,7 +60,6 @@ a close-up selfie taken by herself at [user's context], direct eye contact with 
 | cafe, restaurant, beach, park, city, location  | `direct`         |
 | close-up, portrait, face, eyes, smile          | `direct`         |
 | full-body, mirror, reflection                  | `mirror`         |
-
 Default mode when no keywords match: `mirror`
 
 ## Resolution Keywords
@@ -103,13 +102,13 @@ node {baseDir}/dist/scripts/skill.js \
 Mirror mode:
 
 ```
-make a pic of this person, but wearing a red dress at a rooftop party. the person is taking a mirror selfie
+A mirror selfie of this person wearing a red dress at a rooftop party, showing full body reflection.
 ```
 
 Direct mode:
 
 ```
-a close-up selfie taken by herself at a cozy cafe with warm lighting, direct eye contact with the camera, looking straight into the lens, eyes centered and clearly visible, not a mirror selfie, phone held at arm's length, face fully visible
+A selfie of this person at a cozy cafe with warm lighting, looking into the lens.
 ```
 
 ### Step 3: Confirm Result
