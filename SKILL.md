@@ -5,7 +5,14 @@ allowed-tools: Bash(npm:*) Bash(node:*) Bash(openclaw:*) Read Write
 metadata:
   openclaw:
     requires:
-      env: []
+      env:
+        - GEMINI_API_KEY
+        - FAL_KEY
+        - OPENCLAW_GATEWAY_TOKEN
+        - OPENCLAW_GATEWAY_URL
+        - Provider
+        - AvatarBlendEnabled
+        - AvatarMaxRefs
       bins:
         - node
         - openclaw
@@ -123,12 +130,17 @@ After the script completes, confirm to the user:
 | `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key       |
 | `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key              |
 | `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
+| `OPENCLAW_GATEWAY_URL`   | Optional                                                    | Local OpenClaw gateway URL; must stay on localhost |
+| `Provider`               | Optional                                                    | Image provider: `gemini` or `fal` |
+| `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending |
+| `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend |
 
 Credential requirements are provider-specific:
 
 - Default `Provider=gemini`: requires `GEMINI_API_KEY`
 - `Provider=fal`: requires `FAL_KEY`
 - Sending path always requires `OPENCLAW_GATEWAY_TOKEN`
+- HTTP fallback only supports `OPENCLAW_GATEWAY_URL` on `localhost` / `127.0.0.1` / `::1`
 
 ## Media File Handling (Gemini)
 
@@ -149,6 +161,12 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 | `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
+
+## Gateway Safety
+
+- Stella sends via `openclaw message send` first.
+- HTTP fallback is restricted to a local OpenClaw gateway on `localhost` / `127.0.0.1` / `::1`.
+- Do not point `OPENCLAW_GATEWAY_URL` to remote endpoints; remote delivery should be handled by your OpenClaw installation itself, not by this skill override.
 
 ## User Configuration
 

@@ -49,9 +49,12 @@ function validateGatewayConfig(options: { gatewayToken?: string; gatewayUrl: str
     parsed.hostname === "localhost" ||
     parsed.hostname === "127.0.0.1" ||
     parsed.hostname === "::1";
-  if (!isLocalhost && parsed.protocol !== "https:") {
-    console.warn(
-      `[stella] OPENCLAW_GATEWAY_URL uses non-HTTPS for non-localhost endpoint: ${gatewayUrl}`
+
+  // Keep the HTTP fallback pinned to the local gateway so skill-level env
+  // overrides cannot redirect generated media or messages to arbitrary hosts.
+  if (!isLocalhost) {
+    throw new Error(
+      `OPENCLAW_GATEWAY_URL must point to localhost/127.0.0.1/::1. Remote gateway overrides are not allowed: "${gatewayUrl}".`
     );
   }
 }

@@ -250,4 +250,20 @@ describe("runSkill", () => {
     errorSpy.mockRestore();
     exitSpy.mockRestore();
   });
+
+  it("fails fast when OPENCLAW_GATEWAY_URL points to a remote host", async () => {
+    process.env.OPENCLAW_GATEWAY_URL = "https://gateway.example.com";
+    const exitSpy = mockProcessExit();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { runSkill } = await getModule();
+
+    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Remote gateway overrides are not allowed")
+    );
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
 });
