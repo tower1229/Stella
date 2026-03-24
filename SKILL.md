@@ -7,15 +7,8 @@ metadata:
     requires:
       env:
         - GEMINI_API_KEY
-        - FAL_KEY
-        - OPENCLAW_GATEWAY_TOKEN
-        - OPENCLAW_GATEWAY_URL
-        - Provider
-        - AvatarBlendEnabled
-        - AvatarMaxRefs
       bins:
         - node
-        - openclaw
     install:
       - kind: node
         package: "@google/genai"
@@ -125,6 +118,10 @@ After the script completes, confirm to the user:
 
 ## Environment Variables
 
+`metadata.openclaw.requires` is reserved for strict load-time gates. Stella's default runtime path uses
+`Provider=gemini`, so `GEMINI_API_KEY` is declared as the minimal required credential. The variables below are
+documented runtime inputs; some are conditional and are only needed when enabling specific providers or send paths.
+
 | Variable                 | Required                                                    | Description                 |
 | ------------------------ | ----------------------------------------------------------- | --------------------------- |
 | `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key       |
@@ -167,6 +164,21 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 - Stella sends via `openclaw message send` first.
 - HTTP fallback is restricted to a local OpenClaw gateway on `localhost` / `127.0.0.1` / `::1`.
 - Do not point `OPENCLAW_GATEWAY_URL` to remote endpoints; remote delivery should be handled by your OpenClaw installation itself, not by this skill override.
+
+## External Endpoints And Data Flow
+
+| Endpoint / path | When used | Data sent |
+| --- | --- | --- |
+| Google Gemini API | `Provider=gemini` | Prompt text and selected local reference images from `Avatar` / `AvatarsDir` |
+| fal API | `Provider=fal` | Prompt text and public reference image URLs from `AvatarsURLs` |
+| Local OpenClaw gateway (`OPENCLAW_GATEWAY_URL`) | Only when `openclaw message send` is unavailable | Target channel, target id, caption text, and generated media path/URL |
+
+## Security And Privacy
+
+- Stella reads `~/.openclaw/workspace/IDENTITY.md` and local avatar files to build reference context.
+- Under `Provider=gemini`, selected local avatar images are uploaded to Gemini as part of normal image generation.
+- Under `Provider=fal`, only public `http/https` avatar URLs are sent; local avatar files are not uploaded to fal directly.
+- Generated Gemini files are written to `~/.openclaw/workspace/stella-selfie/` and deleted after successful send.
 
 ## User Configuration
 
