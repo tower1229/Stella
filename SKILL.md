@@ -51,13 +51,16 @@ A selfie of this person, [user's context], looking into the lens.
 
 ### Mode Selection Logic
 
-| Keywords in Request                            | Auto-Select Mode |
-| ---------------------------------------------- | ---------------- |
-| outfit, wearing, clothes, dress, suit, fashion | `mirror`         |
-| cafe, restaurant, beach, park, city, location  | `direct`         |
-| close-up, portrait, face, eyes, smile          | `direct`         |
-| full-body, mirror, reflection                  | `mirror`         |
-Default mode when no keywords match: `mirror`
+| Signal                                                        | Auto-Select Mode |
+| ------------------------------------------------------------- | ---------------- |
+| Keywords: outfit, wearing, clothes, dress, suit, fashion      | `mirror`         |
+| Keywords: cafe, restaurant, beach, park, city, location       | `direct`         |
+| Keywords: close-up, portrait, face, eyes, smile               | `direct`         |
+| Keywords: full-body, mirror, reflection                       | `mirror`         |
+| Timeline `continuity.is_continuing: true` (same activity)    | `direct`         |
+| Timeline `continuity.is_continuing: false` (state just changed) | `mirror`       |
+
+Default mode when no keywords match and timeline is unavailable: `mirror`
 
 ## Resolution Keywords
 
@@ -73,14 +76,80 @@ Default mode when no keywords match: `mirror`
 
 Determine from the user's message:
 
-- **User context**: What should the person be doing/wearing/where?
+- **Explicit context** (optional): scene, outfit, location, activity — detect from keywords
 - **Mode** (optional): `mirror` or `direct` — auto-detect from keywords if not specified
 - **Target channel**: Where to send (e.g., `#general`, `@username`, channel ID)
 - **Channel provider** (optional): Which platform (discord, telegram, whatsapp, slack)
 - **Resolution** (optional): 1K / 2K / 4K — default 1K
 - **Count** (optional): How many images — default 1, only increase if explicitly requested
+- **Has explicit scene?**: Does the request contain any specific scene/outfit/location/activity keywords?
 
-### Step 2: Generate Image
+### Step 2: Enrich with Timeline Context (Optional)
+
+**Only run this step when the request has no explicit scene keywords** (no outfit, location, activity, or scene description).
+
+If `timeline_resolve` is available in the current environment, call it:
+
+```
+timeline_resolve({ query: "现在" })
+```
+
+Parse the result:
+
+- If `result.consumption.selfie_ready` exists and `result.consumption.fact.status === "resolved"`:
+  - Extract: `location`, `activity`, `emotion`, `appearance`, `time_of_day`, `summary`
+  - Also read: `result.consumption.fact.continuity` for mode selection
+  - Also read: `result.episodes[0].world_hooks` for atmosphere hints (if available)
+  - Proceed to Step 3 with timeline context
+- If timeline returns `fact.status === "empty"`, or `timeline_resolve` is not available, or any error occurs:
+  - Proceed to Step 3 without timeline context (fallback to default behavior)
+
+**Never block image generation on timeline availability.** Timeline enrichment is best-effort.
+
+### Step 3: Assemble Prompt
+
+#### When timeline context is available (`selfie_ready` resolved)
+
+Build the prompt from `selfie_ready` fields:
+
+```
+A [mode] selfie of this person, [activity] at [location], wearing [appearance], [time_of_day] lighting, with a [emotion] expression.
+```
+
+Apply atmosphere hints from `world_hooks` if present:
+
+| `world_hooks` condition                        | Add to prompt                                      |
+| ---------------------------------------------- | -------------------------------------------------- |
+| `weekday: false` (weekend)                     | "relaxed weekend vibe"                             |
+| `holiday_key` is not null                      | Reference the holiday atmosphere naturally         |
+| `weekday: true` + `time_of_day: "evening"`     | "soft warm indoor light, slightly tired but calm"  |
+
+Apply mode from continuity if not overridden by keywords:
+
+- `continuity.is_continuing: true` → use `direct` (candid, mid-activity)
+- `continuity.is_continuing: false` → use `mirror` (showcasing new state)
+
+**Example — timeline returns home study, evening, organizing work, focused, casual outfit, weekday:**
+
+```
+A mirror selfie of this person, organizing work files at her home study, wearing a casual home outfit, soft warm indoor light, slightly tired but calm, with a focused expression.
+```
+
+**Example — timeline returns cafe, afternoon, reading, content, light summer dress, weekend:**
+
+```
+A direct selfie of this person, reading at a cozy cafe, wearing a light summer dress, afternoon lighting, relaxed weekend vibe, with a content expression.
+```
+
+#### When timeline context is unavailable (fallback)
+
+Use the user's explicit context directly, or generate a neutral prompt:
+
+```
+A mirror selfie of this person, [user's explicit context if any], showing full body reflection.
+```
+
+### Step 4: Generate Image
 
 Run the Stella script:
 
@@ -94,21 +163,7 @@ node {baseDir}/dist/scripts/skill.js \
   --count <NUMBER>
 ```
 
-**Assembled prompt examples:**
-
-Mirror mode:
-
-```
-A mirror selfie of this person wearing a red dress at a rooftop party, showing full body reflection.
-```
-
-Direct mode:
-
-```
-A selfie of this person at a cozy cafe with warm lighting, looking into the lens.
-```
-
-### Step 3: Confirm Result
+### Step 5: Confirm Result
 
 After the script completes, confirm to the user:
 
