@@ -187,6 +187,5 @@ Stella/
 ├── smoke/
 │   └── avatars/              # Reference images for smoke testing
 └── docs/
-    ├── stella-research-notes.md
-    └── clawhub-publish-checklist.md
+    └── protocol.md               # I/O contract and timeline integration rules
 ```

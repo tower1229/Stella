@@ -1,15 +1,15 @@
 # stella-selfie 协议 (v1)
 
-本文档定义了 `stella-selfie` 在人格层级（`timeline -> persona -> stella`）下的最终输入/输出契约。
+本文档定义了 `stella-selfie` 的输入/输出契约，以及与 `stella-timeline-plugin` 的集成规则。
 
 ## Skill 职责
 
 `stella-selfie` 充当渲染/输出层（Rendering/Output Layer）：
 
-- 接收用户发起自拍/照片请求
-- 判定是否需要启动「情景感知智能编排」以丰富画面事实
-- 消费来自外部表达层组件（如 `persona-skill`）的结构化情感表达 JSON
-- 组装并生成图像 Prompt，随后将生图结果发送至对应渠道
+- 接收用户发起的自拍/照片请求
+- 判定是否需要调用 `timeline_resolve` 以获取时间现实锚点
+- 将时间线事实（或用户显式约束）组装为图像 Prompt
+- 生成图像并发送至目标渠道
 
 注意：它绝不负责定义事实上的时间线真相。
 
@@ -26,61 +26,67 @@
   - 生成数量 (count)
   - 发送目标渠道 (channel target/provider)
 
-### 基于情景感知的内部输入 (仅在需要时收集)
+### 基于时间线的内部输入 (仅在需要时收集)
 
-当用户请求中缺乏明确的场景/穿搭信息时，支持依赖组合能力：
+当用户请求中缺乏明确的场景/穿搭信息时，若环境中存在 `timeline_resolve`，则调用它获取当前时间现实：
 
-1. 第一步：调用时间线事实组件（获取客观底层事实状态）
-2. 第二步：调用人格化表达组件（执行情感及画面渲染意图的转换）
-3. 消费经过组装和渲染好的表达状态 JSON 输出来完成后续的 prompt 组装
+```
+timeline_resolve({ query: "现在" })
+```
+
+消费 `result.consumption.selfie_ready` 作为 prompt 的现实锚点，同时读取：
+
+- `result.consumption.fact.continuity` — 用于决定拍摄模式（direct / mirror）
+- `result.episodes[0].world_hooks` — 用于补充环境氛围（weekday / holiday）
 
 ## 输出 (Output)
 
 ### 核心输出
 
-- 图像生成提示词 Prompt (兼顾分发 direct/mirror 模式)
+- 图像生成提示词 Prompt（兼顾 direct / mirror 模式）
 - 生成的图像文件本身
-- 向目标渠道投递的成功反馈机制
+- 向目标渠道投递的成功反馈
 
-### 期待的上游契约 (Expected Upstream Contract)
+### 上游契约：`selfie_ready` 字段 (来自 `stella-timeline-plugin`)
 
-如启用了上游组件向 `stella-selfie` 投递状态时，必须包含以下必填字段：
+`result.consumption.selfie_ready` 的稳定字段如下，均为必填（由 timeline 保证）：
 
-- `scene.location`
-- `scene.activity`
-- `scene.time_of_day`
-- `emotion.primary`
-- `appearance.outfit_style`
-- `camera.suggested_mode`
-- `camera.lighting`
-- `confidence`
+| 字段 | 说明 |
+| --- | --- |
+| `location` | 当前地点标签 |
+| `activity` | 当前活动描述 |
+| `emotion` | 主要情绪 |
+| `appearance` | 穿搭风格 |
+| `time_of_day` | 时段（morning / afternoon / evening / night）|
+| `summary` | 当前状态摘要 |
 
-## 智能编排规则 (Orchestration Rules - 若启用集成则必选)
+辅助字段（可选，用于增强 prompt）：
 
-1. 如果用户请求没有任何具体的场景关键词，可以按照下述顺序触发外部援助：
-   - 时间线事实层组件 -> 人格化表达层组件
-2. 绝不允许跳过事实获取而直接向表现层要画面。
-3. 如果外部组件处于不可用状态，退回到 Stella 自己内部的基础系统默认行为。
-4. 当检测到上游推断的 `confidence < 0.5` 时，必须运用保守的默认回退逻辑。
+| 字段 | 来源 | 说明 |
+| --- | --- | --- |
+| `fact.continuity.is_continuing` | `consumption.fact` | 是否延续上一状态，影响拍摄模式选择 |
+| `world_hooks.weekday` | `episodes[0]` | 是否工作日，影响氛围描述 |
+| `world_hooks.holiday_key` | `episodes[0]` | 节假日标识，影响氛围描述 |
+
+## 智能编排规则 (Orchestration Rules)
+
+1. 用户请求有显式场景关键词时：直接使用约束组装 prompt，跳过 timeline 调用。
+2. 用户请求无显式场景关键词时：若 `timeline_resolve` 可用，先调用获取 `selfie_ready`，再组装 prompt。
+3. `timeline_resolve` 不可用、返回 `fact.status === "empty"`，或任何调用错误：退回默认行为，不阻塞生图。
+4. `fact.confidence < 0.5` 时：忽略 timeline 结果，退回默认行为。
 
 ## 触发策略 (Trigger Strategy)
 
-- 当用户请求拥有显式的场景/衣着/动作约束时：
-  - Stella 应直接使用明确的约束开始执行，自身完成闭环，跳过所有上下文延伸链条。
-- 当用户请求没有提供任何显式的约束时：
-  - 首选启用外部情景感知链后再进行渲染，若缺乏外部帮助则自定妥协方案。
+- 有显式约束 → Stella 自身完成闭环，不调用 timeline。
+- 无显式约束 → 优先调用 timeline 获取现实锚点；timeline 不可用时使用 mirror 模式默认 prompt。
 
 ## 异常回退行为 (Fallback Behavior)
 
-- 若缺失 `camera.suggested_mode` 或 `confidence`：退回至基础的 `mirror`（对镜自拍）模式。
-- 若接收到的表达状态 Payload 无效或残缺：退回至 Stella 本身的默认模式选取规则处理。
-
-## 版本管理 (Versioning)
-
-- 追踪来自外部 payload 数据体里面的上游 Schema 版本。
-- 遇到严重的（major）版本不兼容，应该实施安全回退，决不允许产生未定义字段造成的灾难 Prompt。
+- `timeline_resolve` 不可用或调用失败：退回 mirror 模式，使用无场景的默认 prompt。
+- `selfie_ready` 字段缺失或不完整：退回 Stella 自身的默认模式选取规则。
+- `continuity` 字段缺失：默认使用 mirror 模式。
+- `world_hooks` 字段缺失：跳过氛围修饰，不影响其他字段的使用。
 
 ## （可选）家族技能生态配合 (Family Skill Integration)
 
-虽然 `stella-selfie` 是通用的多模态生图消费节点，但它可以选择性地作为 `timeline-skill` 和 `persona-skill` 家族组件的增强外延：
-当在部署环境里集齐了该家族组件时，`stella-selfie` 可以天然地、无缝地接受上述两者的链式输出，通过在 Agent 的基础 prompt 或 SKILL file 中约定编排命令（如："未指定场景时，使用 timeline -> persona"），形成强真实感、强时间锚点及强人格体现的高级自拍闭环能力。这种集成对 `stella-selfie` 内部自身算法和核心实现保持完全松耦合与非锁定依赖。
+`stella-selfie` 是通用的多模态生图消费节点，可选择性地与 `stella-timeline-plugin` 集成：当部署环境中安装了 `stella-timeline-plugin` 时，`stella-selfie` 会自动获得时间现实感知能力，形成强真实感、强时间锚点的自拍闭环。这种集成对 `stella-selfie` 的内部实现保持完全松耦合——未安装 timeline plugin 时行为不变。

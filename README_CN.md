@@ -187,7 +187,6 @@ Stella/
 ├── smoke/
 │   └── avatars/              # Smoke 测试用参考图片
 └── docs/
-    ├── stella-research-notes.md
-    └── clawhub-publish-checklist.md
+    └── protocol.md               # 输入/输出契约与 timeline 集成规则
 ```
 
