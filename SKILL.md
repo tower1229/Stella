@@ -100,8 +100,7 @@ Parse the result:
 
 - If `result.consumption.selfie_ready` exists and `result.consumption.fact.status === "resolved"`:
   - Extract: `location`, `activity`, `emotion`, `appearance`, `time_of_day`, `summary`
-  - Also read: `result.consumption.fact.continuity` for mode selection
-  - Also read: `result.episodes[0].world_hooks` for atmosphere hints (if available)
+  - Read `result.consumption.fact.continuity` for mode selection (if present)
   - Proceed to Step 3 with timeline context
 - If timeline returns `fact.status === "empty"`, or `timeline_resolve` is not available, or any error occurs:
   - Proceed to Step 3 without timeline context (fallback to default behavior)
@@ -118,18 +117,19 @@ Build the prompt from `selfie_ready` fields:
 A [mode] selfie of this person, [activity] at [location], wearing [appearance], [time_of_day] lighting, with a [emotion] expression.
 ```
 
-Apply atmosphere hints from `world_hooks` if present:
+If timeline returns additional stable atmosphere hints, you may apply them naturally:
 
-| `world_hooks` condition                    | Add to prompt                                     |
-| ------------------------------------------ | ------------------------------------------------- |
-| `weekday: false` (weekend)                 | "relaxed weekend vibe"                            |
-| `holiday_key` is not null                  | Reference the holiday atmosphere naturally        |
-| `weekday: true` + `time_of_day: "evening"` | "soft warm indoor light, slightly tired but calm" |
+| Example condition                           | Add to prompt                                     |
+| ------------------------------------------- | ------------------------------------------------- |
+| Weekend-like context                        | "relaxed weekend vibe"                            |
+| Holiday-like context                        | Reference the holiday atmosphere naturally        |
+| Weekday evening indoor context              | "soft warm indoor light, slightly tired but calm" |
 
 Apply mode from continuity if not overridden by keywords:
 
 - `continuity.is_continuing: true` → use `direct` (candid, mid-activity)
 - `continuity.is_continuing: false` → use `mirror` (showcasing new state)
+- If `continuity` is missing, fall back to keyword-based mode selection, then default to `mirror`
 
 **Example — timeline returns home study, evening, organizing work, focused, casual outfit, weekday:**
 
