@@ -29,7 +29,6 @@ clawhub install stella-selfie
         env: {
           // Provider=gemini（默认）时需要
           GEMINI_API_KEY: "your_gemini_api_key",
-          OPENCLAW_GATEWAY_TOKEN: "your_openclaw_gateway_token",
           // 仅当 Provider=fal 时需要
           FAL_KEY: "your_fal_api_key",
           // 仅当 Provider=laozhang 时需要
@@ -63,11 +62,6 @@ clawhub install stella-selfie
 > - 默认 `Provider=gemini`：必须配置 `GEMINI_API_KEY`
 > - `Provider=fal`：必须配置 `FAL_KEY`
 > - `Provider=laozhang`：必须配置 `LAOZHANG_API_KEY`
-> - 任意发送路径都需要 `OPENCLAW_GATEWAY_TOKEN`
->
-> **网关规则**：
->
-> - `OPENCLAW_GATEWAY_URL` 仅支持本地网关（`localhost`、`127.0.0.1`、`::1`），不允许把 skill 的 HTTP fallback 重定向到远端地址。
 
 ### 2. IDENTITY.md
 
@@ -141,8 +135,7 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 
 - Stella 会读取 `~/.openclaw/workspace/IDENTITY.md` 与 `~/.openclaw/workspace/avatars/` 下的本地参考资料。
 - 生成图片写入 `~/.openclaw/workspace/stella-selfie/`，仅在发送成功后删除。
-- 发送链路为 `openclaw message send` 优先，失败后仅回退到本地 HTTP 网关（`OPENCLAW_GATEWAY_URL`，默认 `http://localhost:18789`）。
-- `OPENCLAW_GATEWAY_URL` 必须保持为 `localhost`、`127.0.0.1` 或 `::1`；运行时会拒绝远端地址覆盖。
+- 发送链路只使用 `openclaw message send`。
 
 ## 直接脚本测试（不走 OpenClaw）
 

@@ -57,8 +57,6 @@ describe("runSkill", () => {
     process.env.Provider = "gemini";
     process.env.GEMINI_API_KEY = "test-gemini-key";
     process.env.FAL_KEY = "test-fal-key";
-    process.env.OPENCLAW_GATEWAY_TOKEN = "test-gateway-token";
-    process.env.OPENCLAW_GATEWAY_URL = "http://localhost:18789";
     mockParseIdentity.mockReturnValue({
       avatar: null,
       avatarsDir: null,
@@ -231,38 +229,6 @@ describe("runSkill", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("FAL_KEY is not set"));
-    errorSpy.mockRestore();
-    exitSpy.mockRestore();
-  });
-
-  it("fails fast when OPENCLAW_GATEWAY_URL is invalid", async () => {
-    process.env.OPENCLAW_GATEWAY_URL = "not-a-url";
-    const exitSpy = mockProcessExit();
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { runSkill } = await getModule();
-
-    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
-
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("OPENCLAW_GATEWAY_URL is invalid")
-    );
-    errorSpy.mockRestore();
-    exitSpy.mockRestore();
-  });
-
-  it("fails fast when OPENCLAW_GATEWAY_URL points to a remote host", async () => {
-    process.env.OPENCLAW_GATEWAY_URL = "https://gateway.example.com";
-    const exitSpy = mockProcessExit();
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { runSkill } = await getModule();
-
-    await expect(runSkill(makeArgv())).rejects.toThrow("process.exit:1");
-
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Remote gateway overrides are not allowed")
-    );
     errorSpy.mockRestore();
     exitSpy.mockRestore();
   });

@@ -29,7 +29,6 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
         env: {
           // Required when Provider=gemini (default)
           GEMINI_API_KEY: "your_gemini_api_key",
-          OPENCLAW_GATEWAY_TOKEN: "your_openclaw_gateway_token",
           // Only required when Provider=fal
           FAL_KEY: "your_fal_api_key",
           // Only required when Provider=laozhang
@@ -63,11 +62,6 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
 > - Default `Provider=gemini`: requires `GEMINI_API_KEY`
 > - `Provider=fal`: requires `FAL_KEY`
 > - `Provider=laozhang`: requires `LAOZHANG_API_KEY`
-> - Sending always requires `OPENCLAW_GATEWAY_TOKEN`
->
-> **Gateway rule**:
->
-> - `OPENCLAW_GATEWAY_URL` is only supported for a local gateway (`localhost`, `127.0.0.1`, `::1`). Remote overrides are intentionally rejected.
 
 ### 2. IDENTITY.md
 
@@ -141,8 +135,7 @@ After each image is sent successfully, Stella immediately removes the local file
 
 - Stella reads local profile files from `~/.openclaw/workspace/IDENTITY.md` and `~/.openclaw/workspace/avatars/`.
 - Generated files are written to `~/.openclaw/workspace/stella-selfie/` and removed only after successful send.
-- Message delivery uses `openclaw message send` first, then falls back to a local HTTP gateway (`OPENCLAW_GATEWAY_URL`, default `http://localhost:18789`).
-- `OPENCLAW_GATEWAY_URL` must stay on `localhost`, `127.0.0.1`, or `::1`; remote endpoint overrides are rejected by the runtime.
+- Message delivery uses `openclaw message send` only.
 
 ## Direct Script Testing
 

@@ -35,32 +35,6 @@ function getMissingProviderCredential(provider: Provider): string | null {
   return null;
 }
 
-function validateGatewayConfig(options: { gatewayToken?: string; gatewayUrl: string }): void {
-  const { gatewayUrl } = options;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(gatewayUrl);
-  } catch {
-    throw new Error(
-      `OPENCLAW_GATEWAY_URL is invalid: "${gatewayUrl}". Expected format like http://localhost:18789.`
-    );
-  }
-
-  const isLocalhost =
-    parsed.hostname === "localhost" ||
-    parsed.hostname === "127.0.0.1" ||
-    parsed.hostname === "::1";
-
-  // Keep the HTTP fallback pinned to the local gateway so skill-level env
-  // overrides cannot redirect generated media or messages to arbitrary hosts.
-  if (!isLocalhost) {
-    throw new Error(
-      `OPENCLAW_GATEWAY_URL must point to localhost/127.0.0.1/::1. Remote gateway overrides are not allowed: "${gatewayUrl}".`
-    );
-  }
-}
-
 function hasConfiguredAvatarsDirFailure(options: {
   avatarsDir: string | null;
   avatarBlendEnabled: boolean;
@@ -147,8 +121,6 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
   const provider: Provider = (process.env.Provider as Provider) || "gemini";
   const avatarBlendEnabled =
     (process.env.AvatarBlendEnabled || "true").toLowerCase() !== "false";
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-  const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:18789";
 
   if (provider !== "gemini" && provider !== "fal" && provider !== "laozhang") {
     console.error(`[stella] Unknown Provider: "${provider}". Use "gemini", "fal", or "laozhang".`);
@@ -160,13 +132,6 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     console.error(
       `[stella] ${missingCredential} is not set. Configure it in OpenClaw skills.entries.stella-selfie.env.`
     );
-    process.exit(1);
-  }
-
-  try {
-    validateGatewayConfig({ gatewayToken, gatewayUrl });
-  } catch (err) {
-    console.error(`[stella] ${(err as Error).message}`);
     process.exit(1);
   }
 
@@ -207,8 +172,6 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       channel: args.channel,
       target: args.target,
       message,
-      gatewayToken,
-      gatewayUrl,
     });
     return;
   }
@@ -221,8 +184,6 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
           target: args.target,
           media,
           message: args.caption,
-          gatewayToken,
-          gatewayUrl,
         });
       } catch (err) {
         throw asStellaError("openclaw", err);
@@ -306,8 +267,6 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
           channel: args.channel,
           target: args.target,
           message: failureMessage,
-          gatewayToken,
-          gatewayUrl,
         });
       } catch (notifyErr) {
         const notifyMsg =
@@ -326,4 +285,3 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-

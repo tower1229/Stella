@@ -39,22 +39,24 @@ function hasNodeInstallSpec(skill: string, packageName: string): boolean {
 }
 
 describe("SKILL metadata consistency", () => {
-  it("keeps strict load-time requirements minimal and documents runtime env vars separately", () => {
+  it("declares provider secrets for OpenClaw env injection and keeps node runtime documented", () => {
     const skillPath = path.resolve(__dirname, "..", "SKILL.md");
     const skill = fs.readFileSync(skillPath, "utf-8");
     const requiredEnv = extractRequiredEnv(skill);
     const requiredBins = extractRequiredBins(skill);
 
-    expect(requiredEnv).toEqual(["GEMINI_API_KEY"]);
+    expect(skill).toContain("always: true");
+    expect(requiredEnv).toEqual(["GEMINI_API_KEY", "FAL_KEY", "LAOZHANG_API_KEY"]);
     expect(requiredBins).toEqual(["node"]);
 
     expect(skill).toContain("GEMINI_API_KEY");
     expect(skill).toContain("FAL_KEY");
-    expect(skill).toContain("OPENCLAW_GATEWAY_TOKEN");
-    expect(skill).toContain("OPENCLAW_GATEWAY_URL");
+    expect(skill).toContain("LAOZHANG_API_KEY");
     expect(skill).toContain("Provider");
     expect(skill).toContain("AvatarBlendEnabled");
     expect(skill).toContain("AvatarMaxRefs");
+    expect(skill).not.toContain("OPENCLAW_GATEWAY_TOKEN");
+    expect(skill).not.toContain("OPENCLAW_GATEWAY_URL");
   });
 
   it("declares node install specs for runtime SDKs", () => {

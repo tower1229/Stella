@@ -4,9 +4,12 @@ description: Generate persona-consistent selfie images and send to any OpenClaw 
 allowed-tools: Bash(npm:*) Bash(node:*) Bash(openclaw:*) Read Write
 metadata:
   openclaw:
+    always: true
     requires:
       env:
         - GEMINI_API_KEY
+        - FAL_KEY
+        - LAOZHANG_API_KEY
       bins:
         - node
     install:
@@ -172,17 +175,16 @@ After the script completes, confirm to the user:
 
 ## Environment Variables
 
-`metadata.openclaw.requires` is reserved for strict load-time gates. Stella's default runtime path uses
-`Provider=gemini`, so `GEMINI_API_KEY` is declared as the minimal required credential. The variables below are
-documented runtime inputs; some are conditional and are only needed when enabling specific providers or send paths.
+Stella supports multiple providers and a gateway-backed send path, so its sensitive runtime environment variables
+are explicitly declared in `metadata.openclaw.requires.env` for OpenClaw's env-injection allowlist.
+The skill also sets `metadata.openclaw.always: true`, so these declarations do not become hard load-time gates.
+Actual credential validation remains runtime-driven inside `skill.js`, based on the selected provider.
 
 | Variable                 | Required                                                    | Description                                                                          |
 | ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key                                                                |
 | `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key                                                                       |
 | `LAOZHANG_API_KEY`       | Required (if Provider=laozhang)                             | laozhang.ai API key (`sk-xxx`); get it at [api.laozhang.ai](https://api.laozhang.ai) |
-| `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token                                                          |
-| `OPENCLAW_GATEWAY_URL`   | Optional                                                    | Local OpenClaw gateway URL; must stay on localhost                                   |
 | `Provider`               | Optional                                                    | Image provider: `gemini`, `fal`, or `laozhang`                                       |
 | `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending                                    |
 | `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend                                          |
@@ -192,8 +194,6 @@ Credential requirements are provider-specific:
 - Default `Provider=gemini`: requires `GEMINI_API_KEY`
 - `Provider=fal`: requires `FAL_KEY`
 - `Provider=laozhang`: requires `LAOZHANG_API_KEY`
-- Sending path always requires `OPENCLAW_GATEWAY_TOKEN`
-- HTTP fallback only supports `OPENCLAW_GATEWAY_URL` on `localhost` / `127.0.0.1` / `::1`
 
 ## Media File Handling (Gemini)
 
@@ -217,20 +217,19 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 > **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3-pro-image-preview`). It accepts both local file paths (from `Avatar` / `AvatarsDir`) and HTTP/HTTPS URLs (from `AvatarsURLs`). When `AvatarsURLs` is configured, URLs take priority over local files. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
 
-## Gateway Safety
+## Delivery Path
 
-- Stella sends via `openclaw message send` first.
-- HTTP fallback is restricted to a local OpenClaw gateway on `localhost` / `127.0.0.1` / `::1`.
-- Do not point `OPENCLAW_GATEWAY_URL` to remote endpoints; remote delivery should be handled by your OpenClaw installation itself, not by this skill override.
+- Stella sends via `openclaw message send`.
+- Delivery auth and routing are handled by the local OpenClaw installation, not by skill-level gateway tokens.
 
 ## External Endpoints And Data Flow
 
-| Endpoint / path                                 | When used                                        | Data sent                                                                                   |
-| ----------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Google Gemini API                               | `Provider=gemini`                                | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`                |
-| fal API                                         | `Provider=fal`                                   | Prompt text and public reference image URLs from `AvatarsURLs`                              |
-| laozhang.ai API (`api.laozhang.ai`)             | `Provider=laozhang`                              | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
-| Local OpenClaw gateway (`OPENCLAW_GATEWAY_URL`) | Only when `openclaw message send` is unavailable | Target channel, target id, caption text, and generated media path/URL                       |
+| Endpoint / path                     | When used            | Data sent                                                                                   |
+| ----------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| Google Gemini API                   | `Provider=gemini`    | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`                |
+| fal API                             | `Provider=fal`       | Prompt text and public reference image URLs from `AvatarsURLs`                              |
+| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang`  | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
+| Local OpenClaw CLI                  | Always for delivery  | Target channel, target id, caption text, and generated media path/URL                       |
 
 ## Security And Privacy
 
