@@ -163,8 +163,16 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     avatarsDir: identity.avatarsDir,
     avatarBlendEnabled,
   });
+  const localReferenceImages = referenceImages.slice(0, avatarMaxRefs);
+  const missingNonFalAvatarsDir = provider !== "fal" && !identity.avatarsDir;
+  const missingValidLocalRefs = provider !== "fal" && localReferenceImages.length === 0;
   const missingFalAvatarUrls = provider === "fal" && identity.avatarsURLs.length === 0;
-  if (avatarsDirCheckFailed || missingFalAvatarUrls) {
+  if (
+    avatarsDirCheckFailed ||
+    missingNonFalAvatarsDir ||
+    missingValidLocalRefs ||
+    missingFalAvatarUrls
+  ) {
     const message = getReferenceConfigGuideMessage(
       missingFalAvatarUrls ? "fal" : "gemini"
     );
@@ -193,7 +201,7 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     if (provider === "gemini") {
       const results = await generateWithGemini({
         prompt: args.prompt,
-        referenceImages,
+        referenceImages: localReferenceImages,
         resolution: args.resolution as GeminiResolution,
         count: args.count,
       });
@@ -211,16 +219,9 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
         }
       }
     } else if (provider === "laozhang") {
-      // Prefer local files from AvatarsDir (same as gemini); fall back to AvatarsURLs
-      // only when no local reference images are available.
-      const laozhangRefs =
-        referenceImages.length > 0
-          ? referenceImages
-          : identity.avatarsURLs.slice(0, avatarMaxRefs);
-
       const results = await generateWithLaozhang({
         prompt: args.prompt,
-        referenceImages: laozhangRefs,
+        referenceImages: localReferenceImages,
         resolution: args.resolution,
         count: args.count,
       });

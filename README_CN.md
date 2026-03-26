@@ -55,7 +55,7 @@ clawhub install stella-selfie
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
 >
-> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。**优先使用 `AvatarsDir` 下的本地参考图**（与 `Provider=gemini` 行为一致）；仅当本地参考图不可用时，才 fallback 到 `AvatarsURLs` 中的公开 URL。在 [api.laozhang.ai](https://api.laozhang.ai) 获取 API Key，注意在令牌设置中配置计费模式后才能正常调用。
+> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。它要求使用 `Avatar` / `AvatarsDir` 的本地参考图（与 `Provider=gemini` 行为一致），不会使用 `AvatarsURLs`。在 [api.laozhang.ai](https://api.laozhang.ai) 获取 API Key，注意在令牌设置中配置计费模式后才能正常调用。
 >
 > **凭证规则**：
 >
@@ -74,8 +74,8 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`：主参考图路径（相对 workspace 根目录）
-- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`Provider=gemini` 和 `Provider=laozhang` 均优先读取此目录
-- `AvatarsURLs`：参考图的公开 URL，逗号分隔；`Provider=fal` 必须配置（fal 不支持本地路径）；`Provider=laozhang` 在本地图片不可用时将 fallback 到此处
+- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`Provider=gemini` 和 `Provider=laozhang` 必须配置并读取此目录
+- `AvatarsURLs`：参考图的公开 URL，逗号分隔；`Provider=fal` 必须配置（fal 不支持本地路径）
 
 ### 3. 参考图片（`avatars/` 目录）
 

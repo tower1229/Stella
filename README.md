@@ -55,7 +55,7 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 >
-> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3.1-flash-image-preview`). **Local files from `AvatarsDir` are used by default** (same behavior as `Provider=gemini`); `AvatarsURLs` is only used as a fallback when no local reference images are available. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — you must configure a billing mode in the token settings before the API will work.
+> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3.1-flash-image-preview`). It requires local reference images from `Avatar` / `AvatarsDir` (same behavior as `Provider=gemini`). `AvatarsURLs` is not used by laozhang. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — you must configure a billing mode in the token settings before the API will work.
 >
 > **Credential rules**:
 >
@@ -74,8 +74,8 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`: Path to your primary reference image (relative to workspace root)
-- `AvatarsDir`: Directory of additional reference photos (same character, different styles/scenes/outfits); used by default for both `Provider=gemini` and `Provider=laozhang`
-- `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files not supported); used as fallback for `Provider=laozhang` when no local images are available
+- `AvatarsDir`: Directory of additional reference photos (same character, different styles/scenes/outfits); required for `Provider=gemini` and `Provider=laozhang`
+- `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files not supported)
 
 ### 3. Reference Images (`avatars/` directory)
 

@@ -59,10 +59,10 @@ describe("runSkill", () => {
     process.env.FAL_KEY = "test-fal-key";
     mockParseIdentity.mockReturnValue({
       avatar: null,
-      avatarsDir: null,
+      avatarsDir: "/avatars",
       avatarsURLs: [],
     });
-    mockSelectAvatars.mockReturnValue([]);
+    mockSelectAvatars.mockReturnValue(["/avatars/main.png"]);
     mockGenerateWithFal.mockResolvedValue([]);
     mockSendImage.mockResolvedValue(undefined);
     mockSendMessage.mockResolvedValue(undefined);
@@ -202,6 +202,43 @@ describe("runSkill", () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
     expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsURLs");
     expect(mockSendMessage.mock.calls[0][0].message).toContain("http/https");
+  });
+
+  it("stops non-fal generation when AvatarsDir is not configured", async () => {
+    process.env.Provider = "gemini";
+    mockParseIdentity.mockReturnValue({
+      avatar: "/avatar/main.png",
+      avatarsDir: null,
+      avatarsURLs: ["https://cdn.example.com/ref1.jpg"],
+    });
+
+    const { runSkill } = await getModule();
+    await runSkill(makeArgv());
+
+    expect(mockGenerateWithGemini).not.toHaveBeenCalled();
+    expect(mockGenerateWithFal).not.toHaveBeenCalled();
+    expect(mockSendImage).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsDir");
+  });
+
+  it("stops non-fal generation when AvatarsDir exists but no valid local refs found", async () => {
+    process.env.Provider = "gemini";
+    mockParseIdentity.mockReturnValue({
+      avatar: null,
+      avatarsDir: "/avatars",
+      avatarsURLs: ["https://cdn.example.com/ref1.jpg"],
+    });
+    mockSelectAvatars.mockReturnValue([]);
+
+    const { runSkill } = await getModule();
+    await runSkill(makeArgv());
+
+    expect(mockGenerateWithGemini).not.toHaveBeenCalled();
+    expect(mockGenerateWithFal).not.toHaveBeenCalled();
+    expect(mockSendImage).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsDir");
   });
 
   it("fails fast when GEMINI_API_KEY is missing", async () => {

@@ -215,7 +215,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
-> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3-pro-image-preview`). It accepts both local file paths (from `Avatar` / `AvatarsDir`) and HTTP/HTTPS URLs (from `AvatarsURLs`). When `AvatarsURLs` is configured, URLs take priority over local files. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
+> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3-pro-image-preview`). It requires local reference images from `Avatar` / `AvatarsDir` and does not use `AvatarsURLs`. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
 
 ## Delivery Path
 
@@ -228,7 +228,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 | ----------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
 | Google Gemini API                   | `Provider=gemini`    | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`                |
 | fal API                             | `Provider=fal`       | Prompt text and public reference image URLs from `AvatarsURLs`                              |
-| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang`  | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
+| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang`  | Prompt text and local reference images (`Avatar` / `AvatarsDir`, uploaded as base64)         |
 | Local OpenClaw CLI                  | Always for delivery  | Target channel, target id, caption text, and generated media path/URL                       |
 
 ## Security And Privacy
@@ -236,7 +236,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 - Stella reads `~/.openclaw/workspace/IDENTITY.md` and local avatar files to build reference context.
 - Under `Provider=gemini`, selected local avatar images are uploaded to Gemini as part of normal image generation.
 - Under `Provider=fal`, only public `http/https` avatar URLs are sent; local avatar files are not uploaded to fal directly.
-- Under `Provider=laozhang`, if `AvatarsURLs` is configured, public URLs are sent directly; otherwise, local avatar files are base64-encoded and uploaded to laozhang.ai.
+- Under `Provider=laozhang`, local avatar files from `Avatar` / `AvatarsDir` are base64-encoded and uploaded to laozhang.ai.
 - Generated files (Gemini and laozhang) are written to `~/.openclaw/workspace/stella-selfie/` and deleted after successful send.
 
 ## User Configuration
