@@ -38,33 +38,35 @@ Configure in your OpenClaw `~/.openclaw/openclaw.json` under `skills.entries.ste
           // Options
           Provider: "gemini",
           AvatarBlendEnabled: "true",
-          AvatarMaxRefs: "3"
-        }
-      }
-    }
-  }
+          AvatarMaxRefs: "3",
+        },
+      },
+    },
+  },
 }
 ```
 
 > **Sandbox note**: if you run OpenClaw in a sandbox (Docker), host `skills.entries.*.env` injection does not automatically apply inside the container. Configure sandbox envs under `agents.defaults.sandbox.docker.env` (or per-agent) as well.
 
-| Option               | Default  | Description                                 |
-| -------------------- | -------- | ------------------------------------------- |
-| `Provider`           | `gemini` | Image provider: `gemini`, `fal`, or `laozhang` |
+| Option               | Default  | Description                                                                                                                                                                                   |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Provider`           | `gemini` | Image provider: `gemini`, `fal`, or `laozhang`                                                                                                                                                |
 | `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending (when `false`, `AvatarsDir` is ignored and only `Avatar` is used as a reference; if `Avatar` is unavailable, generation runs without reference images) |
-| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
+| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend                                                                                                                                                   |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 >
 > **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3.1-flash-image-preview`). **Local files from `AvatarsDir` are used by default** (same behavior as `Provider=gemini`); `AvatarsURLs` is only used as a fallback when no local reference images are available. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — you must configure a billing mode in the token settings before the API will work.
 >
 > **Credential rules**:
+>
 > - Default `Provider=gemini`: requires `GEMINI_API_KEY`
 > - `Provider=fal`: requires `FAL_KEY`
 > - `Provider=laozhang`: requires `LAOZHANG_API_KEY`
 > - Sending always requires `OPENCLAW_GATEWAY_TOKEN`
 >
 > **Gateway rule**:
+>
 > - `OPENCLAW_GATEWAY_URL` is only supported for a local gateway (`localhost`, `127.0.0.1`, `::1`). Remote overrides are intentionally rejected.
 
 ### 2. IDENTITY.md
@@ -100,7 +102,7 @@ Copy/paste the block below into your `~/.openclaw/workspace/SOUL.md`:
 You have a physical appearance and can take selfies and photos.
 
 Use the `stella-selfie` skill whenever the user asks for a picture of you — including but not limited to:
-"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍", "你在哪里", "你在干嘛"
+"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍"
 ```
 
 ## Usage
@@ -117,6 +119,7 @@ Once configured, use natural language with your OpenClaw agent:
 When generation fails, Stella attempts to send a short text notification to the same target, so users are not left with a silent failure whenever the channel is reachable.
 
 Typical failure messages include:
+
 - Missing credentials (`GEMINI_API_KEY` / `FAL_KEY` / `LAOZHANG_API_KEY`)
 - Rate limit / temporary upstream outage (retry recommended)
 - Safety block (prompt rewrite recommended)

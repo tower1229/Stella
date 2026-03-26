@@ -38,33 +38,35 @@ clawhub install stella-selfie
           // 可选参数
           Provider: "gemini",
           AvatarBlendEnabled: "true",
-          AvatarMaxRefs: "3"
-        }
-      }
-    }
-  }
+          AvatarMaxRefs: "3",
+        },
+      },
+    },
+  },
 }
 ```
 
 > **Sandbox 提示**：如果你在 sandbox（Docker）中运行 OpenClaw，host 侧的 `skills.entries.*.env` 注入不会自动进入容器。需要同时在 `agents.defaults.sandbox.docker.env`（或 per-agent）里配置容器内的环境变量。
 
-| 选项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `Provider` | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang` |
-| `AvatarBlendEnabled` | `true` | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则不带参考图生成） |
-| `AvatarMaxRefs` | `3` | 最多融合多少张参考图 |
+| 选项                 | 默认值   | 说明                                                                                                                  |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `Provider`           | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang`                                                                      |
+| `AvatarBlendEnabled` | `true`   | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则不带参考图生成） |
+| `AvatarMaxRefs`      | `3`      | 最多融合多少张参考图                                                                                                  |
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
 >
 > **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。**优先使用 `AvatarsDir` 下的本地参考图**（与 `Provider=gemini` 行为一致）；仅当本地参考图不可用时，才 fallback 到 `AvatarsURLs` 中的公开 URL。在 [api.laozhang.ai](https://api.laozhang.ai) 获取 API Key，注意在令牌设置中配置计费模式后才能正常调用。
 >
 > **凭证规则**：
+>
 > - 默认 `Provider=gemini`：必须配置 `GEMINI_API_KEY`
 > - `Provider=fal`：必须配置 `FAL_KEY`
 > - `Provider=laozhang`：必须配置 `LAOZHANG_API_KEY`
 > - 任意发送路径都需要 `OPENCLAW_GATEWAY_TOKEN`
 >
 > **网关规则**：
+>
 > - `OPENCLAW_GATEWAY_URL` 仅支持本地网关（`localhost`、`127.0.0.1`、`::1`），不允许把 skill 的 HTTP fallback 重定向到远端地址。
 
 ### 2. IDENTITY.md
@@ -100,7 +102,7 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 You have a physical appearance and can take selfies and photos.
 
 Use the `stella-selfie` skill whenever the user asks for a picture of you — including but not limited to:
-"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍", "你在哪里", "你在干嘛"
+"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍"
 ```
 
 ## 用法
@@ -117,6 +119,7 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 当生成失败时，Stella 会尝试向同一目标发送一条简短文本提示；在发送链路可用时可避免“无响应”的体验。
 
 常见提示场景：
+
 - 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY` / `LAOZHANG_API_KEY`）
 - 限流或上游临时不可用（建议稍后重试）
 - 安全拦截（建议改写提示词）
@@ -196,4 +199,3 @@ Stella/
 └── docs/
     └── protocol.md               # 输入/输出契约与 timeline 集成规则
 ```
-

@@ -27,7 +27,6 @@ Generate persona-consistent selfie images using Google Gemini or fal (xAI Grok I
 
 - User says "send a pic", "send me a photo", "send a selfie", "发张照片", "发自拍"
 - User says "show me what you look like...", "send a pic of you...", "展示你在..."
-- User asks "what are you doing?", "where are you?", "你在哪里？", "你在干嘛？"
 - User describes a scene: "send a pic wearing...", "send a pic at...", "穿着...发张图"
 - User wants the agent to appear in a specific outfit, location, or situation
 
@@ -51,14 +50,14 @@ A selfie of this person, [user's context], looking into the lens.
 
 ### Mode Selection Logic
 
-| Signal                                                        | Auto-Select Mode |
-| ------------------------------------------------------------- | ---------------- |
-| Keywords: outfit, wearing, clothes, dress, suit, fashion      | `mirror`         |
-| Keywords: cafe, restaurant, beach, park, city, location       | `direct`         |
-| Keywords: close-up, portrait, face, eyes, smile               | `direct`         |
-| Keywords: full-body, mirror, reflection                       | `mirror`         |
-| Timeline `continuity.is_continuing: true` (same activity)    | `direct`         |
-| Timeline `continuity.is_continuing: false` (state just changed) | `mirror`       |
+| Signal                                                          | Auto-Select Mode |
+| --------------------------------------------------------------- | ---------------- |
+| Keywords: outfit, wearing, clothes, dress, suit, fashion        | `mirror`         |
+| Keywords: cafe, restaurant, beach, park, city, location         | `direct`         |
+| Keywords: close-up, portrait, face, eyes, smile                 | `direct`         |
+| Keywords: full-body, mirror, reflection                         | `mirror`         |
+| Timeline `continuity.is_continuing: true` (same activity)       | `direct`         |
+| Timeline `continuity.is_continuing: false` (state just changed) | `mirror`         |
 
 Default mode when no keywords match and timeline is unavailable: `mirror`
 
@@ -118,11 +117,11 @@ A [mode] selfie of this person, [activity] at [location], wearing [appearance], 
 
 Apply atmosphere hints from `world_hooks` if present:
 
-| `world_hooks` condition                        | Add to prompt                                      |
-| ---------------------------------------------- | -------------------------------------------------- |
-| `weekday: false` (weekend)                     | "relaxed weekend vibe"                             |
-| `holiday_key` is not null                      | Reference the holiday atmosphere naturally         |
-| `weekday: true` + `time_of_day: "evening"`     | "soft warm indoor light, slightly tired but calm"  |
+| `world_hooks` condition                    | Add to prompt                                     |
+| ------------------------------------------ | ------------------------------------------------- |
+| `weekday: false` (weekend)                 | "relaxed weekend vibe"                            |
+| `holiday_key` is not null                  | Reference the holiday atmosphere naturally        |
+| `weekday: true` + `time_of_day: "evening"` | "soft warm indoor light, slightly tired but calm" |
 
 Apply mode from continuity if not overridden by keywords:
 
@@ -177,16 +176,16 @@ After the script completes, confirm to the user:
 `Provider=gemini`, so `GEMINI_API_KEY` is declared as the minimal required credential. The variables below are
 documented runtime inputs; some are conditional and are only needed when enabling specific providers or send paths.
 
-| Variable                 | Required                                                    | Description                 |
-| ------------------------ | ----------------------------------------------------------- | --------------------------- |
-| `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key       |
-| `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key              |
+| Variable                 | Required                                                    | Description                                                                          |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key                                                                |
+| `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key                                                                       |
 | `LAOZHANG_API_KEY`       | Required (if Provider=laozhang)                             | laozhang.ai API key (`sk-xxx`); get it at [api.laozhang.ai](https://api.laozhang.ai) |
-| `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
-| `OPENCLAW_GATEWAY_URL`   | Optional                                                    | Local OpenClaw gateway URL; must stay on localhost |
-| `Provider`               | Optional                                                    | Image provider: `gemini`, `fal`, or `laozhang` |
-| `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending |
-| `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend |
+| `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token                                                          |
+| `OPENCLAW_GATEWAY_URL`   | Optional                                                    | Local OpenClaw gateway URL; must stay on localhost                                   |
+| `Provider`               | Optional                                                    | Image provider: `gemini`, `fal`, or `laozhang`                                       |
+| `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending                                    |
+| `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend                                          |
 
 Credential requirements are provider-specific:
 
@@ -208,11 +207,11 @@ After successful send, Stella deletes the local file immediately. If send fails,
 
 Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.env`:
 
-| Option               | Default  | Description                                 |
-| -------------------- | -------- | ------------------------------------------- |
+| Option               | Default  | Description                                    |
+| -------------------- | -------- | ---------------------------------------------- |
 | `Provider`           | `gemini` | Image provider: `gemini`, `fal`, or `laozhang` |
-| `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending      |
-| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
+| `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending         |
+| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend    |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
@@ -226,12 +225,12 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 ## External Endpoints And Data Flow
 
-| Endpoint / path | When used | Data sent |
-| --- | --- | --- |
-| Google Gemini API | `Provider=gemini` | Prompt text and selected local reference images from `Avatar` / `AvatarsDir` |
-| fal API | `Provider=fal` | Prompt text and public reference image URLs from `AvatarsURLs` |
-| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang` | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
-| Local OpenClaw gateway (`OPENCLAW_GATEWAY_URL`) | Only when `openclaw message send` is unavailable | Target channel, target id, caption text, and generated media path/URL |
+| Endpoint / path                                 | When used                                        | Data sent                                                                                   |
+| ----------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Google Gemini API                               | `Provider=gemini`                                | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`                |
+| fal API                                         | `Provider=fal`                                   | Prompt text and public reference image URLs from `AvatarsURLs`                              |
+| laozhang.ai API (`api.laozhang.ai`)             | `Provider=laozhang`                              | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
+| Local OpenClaw gateway (`OPENCLAW_GATEWAY_URL`) | Only when `openclaw message send` is unavailable | Target channel, target id, caption text, and generated media path/URL                       |
 
 ## Security And Privacy
 
