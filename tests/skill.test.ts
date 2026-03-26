@@ -222,6 +222,31 @@ describe("runSkill", () => {
     expect(mockSendMessage.mock.calls[0][0].message).toContain("AvatarsDir");
   });
 
+  it("allows non-fal generation without AvatarsDir when AvatarBlendEnabled is false", async () => {
+    process.env.Provider = "gemini";
+    process.env.AvatarBlendEnabled = "false";
+    mockParseIdentity.mockReturnValue({
+      avatar: "/avatar/main.png",
+      avatarsDir: null,
+      avatarsURLs: [],
+    });
+    mockSelectAvatars.mockReturnValue(["/avatar/main.png"]);
+    mockGenerateWithGemini.mockResolvedValue([
+      {
+        outputPath: "/tmp/out-1.png",
+        mimeType: "image/png",
+        imageData: Buffer.from("x"),
+      },
+    ]);
+
+    const { runSkill } = await getModule();
+    await runSkill(makeArgv());
+
+    expect(mockGenerateWithGemini).toHaveBeenCalledTimes(1);
+    expect(mockSendImage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
   it("stops non-fal generation when AvatarsDir exists but no valid local refs found", async () => {
     process.env.Provider = "gemini";
     mockParseIdentity.mockReturnValue({

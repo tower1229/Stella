@@ -1,10 +1,6 @@
 # Stella — [English README](README.md)
 
-生成**人设一致**的自拍图片，并通过 OpenClaw 发送到任意频道。支持 Google Gemini、fal（xAI Grok Imagine）和 laozhang.ai 三种 provider，并支持多参考图（avatar blending）以增强角色一致性。
-
-## Protocol
-
-- `docs/protocol.md`：`stella-selfie` 最终输入/输出契约（v1）
+让 OpenClaw 稳定生成**人设一致**的自拍图片。支持 [Google Gemini(gemini-3-pro-image-preview)](https://aistudio.google.com/app/api-keys)、[fal（xAI Grok Imagine）](https://fal.ai/dashboard/keys)和 [laozhang.ai(gemini-3-pro-image-preview)](https://api.laozhang.ai/token) 三种 provider，并支持多张参考图（avatar blending），以增强角色一致性。
 
 ## 安装
 
@@ -12,13 +8,15 @@
 clawhub install stella-selfie
 ```
 
+> 或者从[ClawHub](https://clawhub.ai/skills/stella-selfie)下载安装包，手动安装。
+
 安装完成后，请先完成以下配置再使用该 skill。
 
 ## 配置
 
 ### 1. OpenClaw `openclaw.json`
 
-在 OpenClaw 配置文件 `~/.openclaw/openclaw.json` 的 `skills.entries.stella-selfie.env` 下统一配置（密钥 + 可选参数放在一起）。
+在 OpenClaw 配置文件 `~/.openclaw/openclaw.json` 的 `skills.entries.stella-selfie.env` 下统一配置（provider 密钥 + 参考图设置）。
 
 ```json5
 {
@@ -27,11 +25,11 @@ clawhub install stella-selfie
       "stella-selfie": {
         enabled: true,
         env: {
-          // Provider=gemini（默认）时需要
+          // 必填,当 Provider=gemini 时需要,其他时候可以随便设置一个值
           GEMINI_API_KEY: "your_gemini_api_key",
-          // 仅当 Provider=fal 时需要
+          // 必填,当 Provider=fal 时需要,其他时候可以随便设置一个值
           FAL_KEY: "your_fal_api_key",
-          // 仅当 Provider=laozhang 时需要
+          // 必填,当 Provider=laozhang 时需要,其他时候可以随便设置一个值
           LAOZHANG_API_KEY: "sk-your_laozhang_api_key",
 
           // 可选参数
@@ -47,44 +45,38 @@ clawhub install stella-selfie
 
 > **Sandbox 提示**：如果你在 sandbox（Docker）中运行 OpenClaw，host 侧的 `skills.entries.*.env` 注入不会自动进入容器。需要同时在 `agents.defaults.sandbox.docker.env`（或 per-agent）里配置容器内的环境变量。
 
-| 选项                 | 默认值   | 说明                                                                                                                  |
-| -------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `Provider`           | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang`                                                                      |
-| `AvatarBlendEnabled` | `true`   | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则不带参考图生成） |
-| `AvatarMaxRefs`      | `3`      | 最多融合多少张参考图                                                                                                  |
+| 选项                 | 默认值   | 说明                                                                                                            |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `Provider`           | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang`                                                                |
+| `AvatarBlendEnabled` | `true`   | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则拒绝生成） |
+| `AvatarMaxRefs`      | `3`      | 最多融合多少张参考图(详细规则将见下方 IDENTITY.md 设置)                                                         |
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
->
-> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。它要求使用 `Avatar` / `AvatarsDir` 的本地参考图（与 `Provider=gemini` 行为一致），不会使用 `AvatarsURLs`。在 [api.laozhang.ai](https://api.laozhang.ai) 获取 API Key，注意在令牌设置中配置计费模式后才能正常调用。
->
-> **凭证规则**：
->
-> - 默认 `Provider=gemini`：必须配置 `GEMINI_API_KEY`
-> - `Provider=fal`：必须配置 `FAL_KEY`
-> - `Provider=laozhang`：必须配置 `LAOZHANG_API_KEY`
+
+> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。它要求使用 `Avatar` / `AvatarsDir` 的本地参考图（与 `Provider=gemini` 行为一致），不会使用 `AvatarsURLs`。
 
 ### 2. IDENTITY.md
 
 在 `~/.openclaw/workspace/IDENTITY.md` 中添加如下字段：
 
 ```markdown
-Avatar: ./assets/avatar-main.png
-AvatarsDir: ./avatars
+Avatar: avatars/avatar-main.png
+AvatarsDir: avatars/
 AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
-- `Avatar`：主参考图路径（相对 workspace 根目录）
-- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`Provider=gemini` 和 `Provider=laozhang` 必须配置并读取此目录
-- `AvatarsURLs`：参考图的公开 URL，逗号分隔；`Provider=fal` 必须配置（fal 不支持本地路径）
+- `Avatar`：头像路径（将作为主参考图使用）
+- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`AvatarBlendEnabled=true` 且 `Provider=gemini | laozhang` 必须配置并读取此目录
+- `AvatarsURLs`：参考图的公开 URL，半角逗号分隔；`Provider=fal` 时必须配置（
 
 ### 3. 参考图片（`avatars/` 目录）
 
-将参考照片放到 `~/.openclaw/workspace/avatars/`：
+将参考照片放到 `AvatarsDir` 所配置的路径下：
 
 - 支持格式：`jpg` / `jpeg` / `png` / `webp`
 - 照片应为同一角色
 - 不同风格、场景、表情更有助于一致性（前提是 **同一人且关键特征一致**）
-- 按创建时间选择（最新优先），最多选 `AvatarMaxRefs` 张（该选项在 skill env 中配置）
+- 按创建时间选择（最新优先），最多选 `AvatarMaxRefs` 张
 
 ### 4. SOUL.md
 
@@ -103,10 +95,20 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 
 配置好后，直接用自然语言对 OpenClaw agent 说：
 
-- “发张自拍，穿红裙子”
+- “发张自拍”
 - “发张照片，在咖啡馆里”
 - “让我看看你在海滩上的样子”
 - “发张屋顶派对的照片，2K 分辨率”
+
+### 支持分辨率
+
+| 用户说                              | 分辨率 |
+| ----------------------------------- | ------ |
+| (default)                           | `1K`   |
+| 2k, 2048, medium res, 中等分辨率    | `2K`   |
+| 4k, high res, ultra, 超清, 高分辨率 | `4K`   |
+
+### 支持与 [stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 联动
 
 ## 异常体验
 
@@ -118,7 +120,6 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 - 限流或上游临时不可用（建议稍后重试）
 - 安全拦截（建议改写提示词）
 - fal 参考图 URL 不可访问（需公开 `http/https` 图片地址）
-- laozhang.ai 令牌未配置计费模式（需在控制台完成设置）
 
 ## 媒体文件处理（Gemini / laozhang）
 

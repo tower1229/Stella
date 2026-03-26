@@ -164,7 +164,8 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
     avatarBlendEnabled,
   });
   const localReferenceImages = referenceImages.slice(0, avatarMaxRefs);
-  const missingNonFalAvatarsDir = provider !== "fal" && !identity.avatarsDir;
+  const missingNonFalAvatarsDir =
+    provider !== "fal" && avatarBlendEnabled && !identity.avatarsDir;
   const missingValidLocalRefs = provider !== "fal" && localReferenceImages.length === 0;
   const missingFalAvatarUrls = provider === "fal" && identity.avatarsURLs.length === 0;
   if (
