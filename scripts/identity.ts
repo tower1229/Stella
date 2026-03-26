@@ -23,10 +23,16 @@ function resolvePath(value: string, workspaceRoot: string): string {
 
 /**
  * Parse a single key: value line from IDENTITY.md.
+ * Supports plain `Key: value` as well as Markdown list+bold variants:
+ *   - **Key:** value
+ *   - **Key**: value
+ *   * **Key:** value
  * Returns null if the line doesn't match.
  */
 function parseLine(line: string): [string, string] | null {
-  const match = line.match(/^([A-Za-z][A-Za-z0-9_]*):\s*(.+?)\s*(?:#.*)?$/);
+  const match = line.match(
+    /^(?:[-*]\s*)?(?:\*{1,2})?([A-Za-z][A-Za-z0-9_]*)\*{0,2}:\*{0,2}\s*(.+?)\s*(?:#.*)?$/
+  );
   if (!match) return null;
   return [match[1], match[2]];
 }

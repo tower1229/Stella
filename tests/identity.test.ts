@@ -94,4 +94,41 @@ describe("parseIdentity", () => {
 
     expect(result.avatarsURLs).toEqual([]);
   });
+
+  it("parses Markdown list+bold format: - **Key:** value", async () => {
+    mockFs.existsSync.mockReturnValue(true);
+    mockFs.readFileSync.mockReturnValue(
+      `- **Avatar:** avatars/stella.jpg\n- **AvatarsDir:** avatars/\n`
+    );
+    const parseIdentity = await getParseIdentity();
+    const result = parseIdentity(workspace);
+
+    expect(result.avatar).toBe(path.resolve(workspace, "avatars/stella.jpg"));
+    expect(result.avatarsDir).toBe(path.resolve(workspace, "avatars/"));
+  });
+
+  it("parses Markdown list+bold format: - **Key**: value (colon outside bold)", async () => {
+    mockFs.existsSync.mockReturnValue(true);
+    mockFs.readFileSync.mockReturnValue(
+      `- **Avatar**: avatars/stella.jpg\n- **AvatarsDir**: avatars/\n`
+    );
+    const parseIdentity = await getParseIdentity();
+    const result = parseIdentity(workspace);
+
+    expect(result.avatar).toBe(path.resolve(workspace, "avatars/stella.jpg"));
+    expect(result.avatarsDir).toBe(path.resolve(workspace, "avatars/"));
+  });
+
+  it("parses mixed formats in the same file", async () => {
+    mockFs.existsSync.mockReturnValue(true);
+    mockFs.readFileSync.mockReturnValue(
+      `Name: Stella\n- **Avatar:** avatars/stella.jpg\nAvatarsDir: ./avatars\n- **AvatarsURLs:** https://cdn.example.com/ref1.jpg\n`
+    );
+    const parseIdentity = await getParseIdentity();
+    const result = parseIdentity(workspace);
+
+    expect(result.avatar).toBe(path.resolve(workspace, "avatars/stella.jpg"));
+    expect(result.avatarsDir).toBe(path.resolve(workspace, "./avatars"));
+    expect(result.avatarsURLs).toEqual(["https://cdn.example.com/ref1.jpg"]);
+  });
 });
