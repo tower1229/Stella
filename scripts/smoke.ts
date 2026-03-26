@@ -4,9 +4,10 @@ import * as path from "path";
 import { selectAvatars } from "./avatars";
 import { generateWithGemini } from "./providers/gemini";
 import { generateWithFal } from "./providers/fal";
+import { generateWithLaozhang } from "./providers/laozhang";
 
 type Resolution = "1K" | "2K" | "4K";
-type SmokeProvider = "gemini" | "fal";
+type SmokeProvider = "gemini" | "fal" | "laozhang";
 
 function parseArgs(argv: string[]): {
   outdir: string;
@@ -87,7 +88,8 @@ const SMOKE_CASES: Array<{
 }> = [
   {
     name: "01-dress",
-    prompt: "A mirror selfie of this person wearing a white short dress, showing full body reflection.",
+    prompt:
+      "A mirror selfie of this person wearing a white short dress, showing full body reflection.",
     resolution: "1K",
   },
   {
@@ -205,15 +207,72 @@ async function runFalSmoke(outdir: string): Promise<void> {
   }
 }
 
+async function runLaozhangSmoke(outdir: string): Promise<void> {
+  const avatarsDir = parsedArgs.avatarsDir;
+  const avatarMaxRefs = parsedArgs.avatarMaxRefs;
+  const avatarUrls = parsedArgs.falAvatarUrls.slice(0, avatarMaxRefs);
+
+  // Prefer local files (inline_data); fall back to URLs (fileData) when no local images found.
+  const localImages = selectAvatars({
+    avatar: null,
+    avatarsDir,
+    avatarMaxRefs,
+    avatarBlendEnabled: true,
+  });
+  const referenceImages = localImages.length > 0 ? localImages : avatarUrls;
+
+  if (referenceImages.length === 0) {
+    const resolvedDir = path.resolve(process.cwd(), avatarsDir);
+    throw new Error(
+      `No reference images found for laozhang. Add local files under "${avatarsDir}" (resolved: ${resolvedDir}), or pass --avatar-urls with comma-separated http/https URLs.`,
+    );
+  }
+
+  console.log(`[smoke] Reference images: ${referenceImages.join(", ")}`);
+
+  const failures: Array<{ name: string; error: string }> = [];
+
+  for (const c of SMOKE_CASES) {
+    console.log(`[smoke] Running: ${c.name} (${c.resolution})`);
+    try {
+      const results = await generateWithLaozhang({
+        prompt: c.prompt,
+        referenceImages,
+        resolution: c.resolution,
+        count: 1,
+      });
+
+      const r = results[0];
+      const ext = safeExtFromMime(r.mimeType);
+      const filename = `${c.name}-${Date.now()}.${ext}`;
+      const outPath = path.join(outdir, filename);
+      fs.copyFileSync(r.outputPath, outPath);
+      console.log(`[smoke] Saved: ${outPath}`);
+    } catch (err) {
+      const msg = (err as Error)?.message || String(err);
+      console.error(`[smoke] Failed: ${c.name}: ${msg}`);
+      failures.push({ name: c.name, error: msg });
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error(`[smoke] Failures: ${failures.length}/${SMOKE_CASES.length}`);
+    for (const f of failures) {
+      console.error(`[smoke] - ${f.name}: ${f.error}`);
+    }
+    process.exitCode = 1;
+  }
+}
+
 async function main(): Promise<void> {
   loadDotEnvLocalIfPresent();
   parsedArgs = parseArgs(process.argv);
   const { outdir, provider, avatarsDir, avatarMaxRefs } = parsedArgs;
   ensureDir(outdir);
 
-  if (provider !== "gemini" && provider !== "fal") {
+  if (provider !== "gemini" && provider !== "fal" && provider !== "laozhang") {
     throw new Error(
-      `Unsupported provider for smoke test: ${provider}. Use "gemini" or "fal".`,
+      `Unsupported provider for smoke test: ${provider}. Use "gemini", "fal", or "laozhang".`,
     );
   }
 
@@ -224,6 +283,8 @@ async function main(): Promise<void> {
 
   if (provider === "gemini") {
     await runGeminiSmoke(outdir);
+  } else if (provider === "laozhang") {
+    await runLaozhangSmoke(outdir);
   } else {
     await runFalSmoke(outdir);
   }

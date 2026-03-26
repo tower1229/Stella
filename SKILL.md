@@ -1,6 +1,6 @@
 ---
 name: stella-selfie
-description: Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini and fal providers, multi-reference avatar blending.
+description: Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini, fal, and laozhang.ai providers, multi-reference avatar blending.
 allowed-tools: Bash(npm:*) Bash(node:*) Bash(openclaw:*) Read Write
 metadata:
   openclaw:
@@ -181,9 +181,10 @@ documented runtime inputs; some are conditional and are only needed when enablin
 | ------------------------ | ----------------------------------------------------------- | --------------------------- |
 | `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key       |
 | `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key              |
+| `LAOZHANG_API_KEY`       | Required (if Provider=laozhang)                             | laozhang.ai API key (`sk-xxx`); get it at [api.laozhang.ai](https://api.laozhang.ai) |
 | `OPENCLAW_GATEWAY_TOKEN` | Required (for sending via OpenClaw Gateway / HTTP fallback) | OpenClaw gateway auth token |
 | `OPENCLAW_GATEWAY_URL`   | Optional                                                    | Local OpenClaw gateway URL; must stay on localhost |
-| `Provider`               | Optional                                                    | Image provider: `gemini` or `fal` |
+| `Provider`               | Optional                                                    | Image provider: `gemini`, `fal`, or `laozhang` |
 | `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending |
 | `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend |
 
@@ -191,6 +192,7 @@ Credential requirements are provider-specific:
 
 - Default `Provider=gemini`: requires `GEMINI_API_KEY`
 - `Provider=fal`: requires `FAL_KEY`
+- `Provider=laozhang`: requires `LAOZHANG_API_KEY`
 - Sending path always requires `OPENCLAW_GATEWAY_TOKEN`
 - HTTP fallback only supports `OPENCLAW_GATEWAY_URL` on `localhost` / `127.0.0.1` / `::1`
 
@@ -208,11 +210,13 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 | Option               | Default  | Description                                 |
 | -------------------- | -------- | ------------------------------------------- |
-| `Provider`           | `gemini` | Image provider: `gemini` or `fal`           |
+| `Provider`           | `gemini` | Image provider: `gemini`, `fal`, or `laozhang` |
 | `AvatarBlendEnabled` | `true`   | Enable multi-reference avatar blending      |
 | `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend |
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
+
+> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3-pro-image-preview`). It accepts both local file paths (from `Avatar` / `AvatarsDir`) and HTTP/HTTPS URLs (from `AvatarsURLs`). When `AvatarsURLs` is configured, URLs take priority over local files. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
 
 ## Gateway Safety
 
@@ -226,6 +230,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 | --- | --- | --- |
 | Google Gemini API | `Provider=gemini` | Prompt text and selected local reference images from `Avatar` / `AvatarsDir` |
 | fal API | `Provider=fal` | Prompt text and public reference image URLs from `AvatarsURLs` |
+| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang` | Prompt text and reference images (local files as base64, or public URLs from `AvatarsURLs`) |
 | Local OpenClaw gateway (`OPENCLAW_GATEWAY_URL`) | Only when `openclaw message send` is unavailable | Target channel, target id, caption text, and generated media path/URL |
 
 ## Security And Privacy
@@ -233,7 +238,8 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 - Stella reads `~/.openclaw/workspace/IDENTITY.md` and local avatar files to build reference context.
 - Under `Provider=gemini`, selected local avatar images are uploaded to Gemini as part of normal image generation.
 - Under `Provider=fal`, only public `http/https` avatar URLs are sent; local avatar files are not uploaded to fal directly.
-- Generated Gemini files are written to `~/.openclaw/workspace/stella-selfie/` and deleted after successful send.
+- Under `Provider=laozhang`, if `AvatarsURLs` is configured, public URLs are sent directly; otherwise, local avatar files are base64-encoded and uploaded to laozhang.ai.
+- Generated files (Gemini and laozhang) are written to `~/.openclaw/workspace/stella-selfie/` and deleted after successful send.
 
 ## User Configuration
 

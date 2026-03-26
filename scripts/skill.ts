@@ -12,10 +12,11 @@ import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
 import { generateWithGemini, Resolution as GeminiResolution } from "./providers/gemini";
 import { generateWithFal } from "./providers/fal";
+import { generateWithLaozhang } from "./providers/laozhang";
 import { sendImage, sendMessage } from "./sender";
 import { asStellaError, formatFailureMessage } from "./errors";
 
-type Provider = "gemini" | "fal";
+type Provider = "gemini" | "fal" | "laozhang";
 type Resolution = "1K" | "2K" | "4K";
 
 interface CliArgs {
@@ -30,6 +31,7 @@ interface CliArgs {
 function getMissingProviderCredential(provider: Provider): string | null {
   if (provider === "gemini" && !process.env.GEMINI_API_KEY) return "GEMINI_API_KEY";
   if (provider === "fal" && !process.env.FAL_KEY) return "FAL_KEY";
+  if (provider === "laozhang" && !process.env.LAOZHANG_API_KEY) return "LAOZHANG_API_KEY";
   return null;
 }
 
@@ -148,8 +150,8 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:18789";
 
-  if (provider !== "gemini" && provider !== "fal") {
-    console.error(`[stella] Unknown Provider: "${provider}". Use "gemini" or "fal".`);
+  if (provider !== "gemini" && provider !== "fal" && provider !== "laozhang") {
+    console.error(`[stella] Unknown Provider: "${provider}". Use "gemini", "fal", or "laozhang".`);
     process.exit(1);
   }
 
@@ -232,6 +234,33 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
         prompt: args.prompt,
         referenceImages,
         resolution: args.resolution as GeminiResolution,
+        count: args.count,
+      });
+
+      for (const result of results) {
+        await sendGeneratedMedia(result.outputPath);
+        try {
+          fs.unlinkSync(result.outputPath);
+        } catch (cleanupErr) {
+          const cleanupMsg =
+            (cleanupErr as Error)?.message || String(cleanupErr);
+          console.warn(
+            `[stella] Failed to remove generated file: ${result.outputPath} (${cleanupMsg})`
+          );
+        }
+      }
+    } else if (provider === "laozhang") {
+      // Prefer local files from AvatarsDir (same as gemini); fall back to AvatarsURLs
+      // only when no local reference images are available.
+      const laozhangRefs =
+        referenceImages.length > 0
+          ? referenceImages
+          : identity.avatarsURLs.slice(0, avatarMaxRefs);
+
+      const results = await generateWithLaozhang({
+        prompt: args.prompt,
+        referenceImages: laozhangRefs,
+        resolution: args.resolution,
         count: args.count,
       });
 

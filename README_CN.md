@@ -1,6 +1,6 @@
 # Stella — [English README](README.md)
 
-生成**人设一致**的自拍图片，并通过 OpenClaw 发送到任意频道。支持 Google Gemini 与 fal（xAI Grok Imagine）两种 provider，并支持多参考图（avatar blending）以增强角色一致性。
+生成**人设一致**的自拍图片，并通过 OpenClaw 发送到任意频道。支持 Google Gemini、fal（xAI Grok Imagine）和 laozhang.ai 三种 provider，并支持多参考图（avatar blending）以增强角色一致性。
 
 ## Protocol
 
@@ -32,6 +32,8 @@ clawhub install stella-selfie
           OPENCLAW_GATEWAY_TOKEN: "your_openclaw_gateway_token",
           // 仅当 Provider=fal 时需要
           FAL_KEY: "your_fal_api_key",
+          // 仅当 Provider=laozhang 时需要
+          LAOZHANG_API_KEY: "sk-your_laozhang_api_key",
 
           // 可选参数
           Provider: "gemini",
@@ -48,15 +50,18 @@ clawhub install stella-selfie
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `Provider` | `gemini` | 图片生成 provider：`gemini` 或 `fal` |
+| `Provider` | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang` |
 | `AvatarBlendEnabled` | `true` | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则不带参考图生成） |
 | `AvatarMaxRefs` | `3` | 最多融合多少张参考图 |
 
 > **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
 >
+> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。**优先使用 `AvatarsDir` 下的本地参考图**（与 `Provider=gemini` 行为一致）；仅当本地参考图不可用时，才 fallback 到 `AvatarsURLs` 中的公开 URL。在 [api.laozhang.ai](https://api.laozhang.ai) 获取 API Key，注意在令牌设置中配置计费模式后才能正常调用。
+>
 > **凭证规则**：
 > - 默认 `Provider=gemini`：必须配置 `GEMINI_API_KEY`
 > - `Provider=fal`：必须配置 `FAL_KEY`
+> - `Provider=laozhang`：必须配置 `LAOZHANG_API_KEY`
 > - 任意发送路径都需要 `OPENCLAW_GATEWAY_TOKEN`
 >
 > **网关规则**：
@@ -73,8 +78,8 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`：主参考图路径（相对 workspace 根目录）
-- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）
-- `AvatarsURLs`：参考图的公开 URL（仅 `Provider=fal` 必需；fal 不支持本地路径）
+- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`Provider=gemini` 和 `Provider=laozhang` 均优先读取此目录
+- `AvatarsURLs`：参考图的公开 URL，逗号分隔；`Provider=fal` 必须配置（fal 不支持本地路径）；`Provider=laozhang` 在本地图片不可用时将 fallback 到此处
 
 ### 3. 参考图片（`avatars/` 目录）
 
@@ -112,14 +117,15 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 当生成失败时，Stella 会尝试向同一目标发送一条简短文本提示；在发送链路可用时可避免“无响应”的体验。
 
 常见提示场景：
-- 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY`）
+- 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY` / `LAOZHANG_API_KEY`）
 - 限流或上游临时不可用（建议稍后重试）
 - 安全拦截（建议改写提示词）
 - fal 参考图 URL 不可访问（需公开 `http/https` 图片地址）
+- laozhang.ai 令牌未配置计费模式（需在控制台完成设置）
 
-## 媒体文件处理（Gemini）
+## 媒体文件处理（Gemini / laozhang）
 
-当 `Provider=gemini` 时，生成图片会写入：
+当 `Provider=gemini` 或 `Provider=laozhang` 时，生成图片会写入：
 
 - `~/.openclaw/workspace/stella-selfie/`
 
@@ -181,7 +187,8 @@ Stella/
 │   ├── sender.ts             # OpenClaw 发送
 │   └── providers/
 │       ├── gemini.ts         # Gemini provider
-│       └── fal.ts            # fal.ai provider
+│       ├── fal.ts            # fal.ai provider
+│       └── laozhang.ts       # laozhang.ai provider
 ├── tests/                    # 单元测试（vitest）
 │   └── providers/            # Provider 单测
 ├── smoke/

@@ -1,4 +1,4 @@
-export type StellaProvider = "gemini" | "fal" | "openclaw";
+export type StellaProvider = "gemini" | "fal" | "laozhang" | "openclaw";
 
 export type StellaErrorCategory =
   | "user_fixable"
@@ -444,6 +444,151 @@ export function normalizeFalError(err: unknown): StellaErrorDetails {
   return defaultUnknown("fal", err);
 }
 
+export function normalizeLaozhangError(err: unknown): StellaErrorDetails {
+  const ctx: NormalizationContext = {
+    message: readMessage(err),
+    status: readStatus(err),
+    lower: readMessage(err).toLowerCase(),
+  };
+
+  if (ctx.message.includes("LAOZHANG_API_KEY is not set")) {
+    return makeDetails("laozhang", ctx, {
+      code: "CONFIG_MISSING",
+      category: "config",
+      retryable: false,
+      userMessage: "这次图片没生成成功：缺少 laozhang.ai API Key。",
+      actionHint: "请在 skills.entries.stella-selfie.env 中配置 LAOZHANG_API_KEY 后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.lower.includes("safety") ||
+    ctx.lower.includes("block_reason") ||
+    ctx.lower.includes("blockedreason")
+  ) {
+    return makeDetails("laozhang", ctx, {
+      code: "SAFETY_BLOCKED",
+      category: "policy",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求触发了内容安全限制。",
+      actionHint: "请改用更中性、非敏感的描述后再试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 400) {
+    return makeDetails("laozhang", ctx, {
+      code: "INPUT_INVALID",
+      category: "user_fixable",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求参数不合法。",
+      actionHint: "请简化提示词或调整参数后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 401 || ctx.status === 403 || ctx.lower.includes("permission_denied")) {
+    return makeDetails("laozhang", ctx, {
+      code: "AUTH_INVALID_KEY",
+      category: "auth",
+      retryable: false,
+      userMessage: "这次图片没生成成功：laozhang.ai 鉴权失败或权限不足。",
+      actionHint: "请检查 LAOZHANG_API_KEY 是否正确、可用，并已在令牌设置中配置计费模式。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.status === 404 || ctx.lower.includes("not_found")) {
+    return makeDetails("laozhang", ctx, {
+      code: "RESOURCE_NOT_FOUND",
+      category: "user_fixable",
+      retryable: false,
+      userMessage: "这次图片没生成成功：请求引用的资源不存在。",
+      actionHint: "请检查输入资源路径或链接后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.status === 429 ||
+    ctx.lower.includes("resource_exhausted") ||
+    ctx.lower.includes("rate limit")
+  ) {
+    return makeDetails("laozhang", ctx, {
+      code: "RATE_LIMITED",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：请求过于频繁。",
+      actionHint: "请等待 1-2 分钟后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.status === 504 ||
+    ctx.lower.includes("deadline_exceeded") ||
+    ctx.lower.includes("timeout")
+  ) {
+    return makeDetails("laozhang", ctx, {
+      code: "TIMEOUT",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：laozhang.ai 处理超时。",
+      actionHint: "请稍后重试，或简化提示词后再试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.lower.includes("econnreset") ||
+    ctx.lower.includes("etimedout") ||
+    ctx.lower.includes("fetch failed") ||
+    ctx.lower.includes("network") ||
+    ctx.lower.includes("socket hang up") ||
+    ctx.lower.includes("eai_again") ||
+    ctx.lower.includes("enotfound")
+  ) {
+    return makeDetails("laozhang", ctx, {
+      code: "UPSTREAM_UNAVAILABLE",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：网络或上游服务暂时不可用。",
+      actionHint: "请稍后重试。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (
+    ctx.status === 500 ||
+    ctx.status === 503 ||
+    ctx.lower.includes("unavailable") ||
+    ctx.lower.includes("internal")
+  ) {
+    return makeDetails("laozhang", ctx, {
+      code: "UPSTREAM_UNAVAILABLE",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：laozhang.ai 服务暂时不可用。",
+      actionHint: "请稍后重试，必要时切换其他 Provider。",
+      upstreamType: undefined,
+    });
+  }
+
+  if (ctx.lower.includes("no image data") || ctx.lower.includes("no content parts")) {
+    return makeDetails("laozhang", ctx, {
+      code: "NO_OUTPUT",
+      category: "transient",
+      retryable: true,
+      userMessage: "这次图片没生成成功：模型未返回有效图片。",
+      actionHint: "请直接重试一次，或稍微改写提示词后再试。",
+      upstreamType: undefined,
+    });
+  }
+
+  return defaultUnknown("laozhang", err);
+}
+
 export function normalizeOpenClawSendError(err: unknown): StellaErrorDetails {
   const message = readMessage(err);
   return {
@@ -469,6 +614,7 @@ export function asStellaError(provider: StellaProvider, err: unknown): StellaErr
   if (isStellaError(err)) return err;
   if (provider === "gemini") return toStellaError(normalizeGeminiError(err), err);
   if (provider === "fal") return toStellaError(normalizeFalError(err), err);
+  if (provider === "laozhang") return toStellaError(normalizeLaozhangError(err), err);
   return toStellaError(normalizeOpenClawSendError(err), err);
 }
 
@@ -478,6 +624,10 @@ export function shouldRetryGemini(err: unknown): boolean {
 
 export function shouldRetryFal(err: unknown): boolean {
   return normalizeFalError(err).retryable;
+}
+
+export function shouldRetryLaozhang(err: unknown): boolean {
+  return normalizeLaozhangError(err).retryable;
 }
 
 export function formatFailureMessage(details: StellaErrorDetails): string {
