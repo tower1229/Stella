@@ -60,14 +60,14 @@ clawhub install stella-selfie
 在 `~/.openclaw/workspace/IDENTITY.md` 中添加如下字段：
 
 ```markdown
-Avatar: avatars/avatar-main.png
-AvatarsDir: avatars/
-AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
+- Avatar: avatars/avatar-main.png
+- AvatarsDir: avatars/
+- AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 ```
 
 - `Avatar`：头像路径（将作为主参考图使用）
 - `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`AvatarBlendEnabled=true` 且 `Provider=gemini | laozhang` 必须配置并读取此目录
-- `AvatarsURLs`：参考图的公开 URL，半角逗号分隔；`Provider=fal` 时必须配置（
+- `AvatarsURLs`：参考图的公开 URL，半角逗号分隔；`Provider=fal` 时必须配置
 
 ### 3. 参考图片（`avatars/` 目录）
 
