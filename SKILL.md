@@ -51,6 +51,14 @@ Best for: close-up portraits, location shots, emotional expressions
 A selfie of this person, [user's context], looking into the lens.
 ```
 
+### Mode 3: Tourist Photo
+
+Best for: outdoor travel scenes where handheld selfie is inconvenient, or explicit travel-photo requests
+
+```
+A travel photo of this person, [user's context], full-body composition, natural candid framing, not a handheld selfie.
+```
+
 ### Mode Selection Logic
 
 | Signal                                                          | Auto-Select Mode |
@@ -59,8 +67,12 @@ A selfie of this person, [user's context], looking into the lens.
 | Keywords: cafe, restaurant, beach, park, city, location         | `direct`         |
 | Keywords: close-up, portrait, face, eyes, smile                 | `direct`         |
 | Keywords: full-body, mirror, reflection                         | `mirror`         |
+| Keywords: travel photo, tourist photo, 旅拍, 打卡照, 风景合影, 他拍 | `tourist`        |
+| Outdoor + full-body + no-selfie signal (e.g. "不方便手持/没法自拍") | `tourist`        |
 | Timeline `continuity.is_continuing: true` (same activity)       | `direct`         |
 | Timeline `continuity.is_continuing: false` (state just changed) | `mirror`         |
+
+Priority guardrail for `tourist`: only trigger when explicit travel-photo keywords exist, or when outdoor/travel context clearly includes a no-handheld-selfie signal.
 
 Default mode when no keywords match and timeline is unavailable: `mirror`
 
@@ -79,7 +91,7 @@ Default mode when no keywords match and timeline is unavailable: `mirror`
 Determine from the user's message:
 
 - **Explicit context** (optional): scene, outfit, location, activity — detect from keywords
-- **Mode** (optional): `mirror` or `direct` — auto-detect from keywords if not specified
+- **Mode** (optional): `mirror`, `direct`, or `tourist` — auto-detect from keywords if not specified
 - **Target channel**: Where to send (e.g., `#general`, `@username`, channel ID)
 - **Channel provider** (optional): Which platform (discord, telegram, whatsapp, slack)
 - **Resolution** (optional): 1K / 2K / 4K — default 1K
@@ -117,18 +129,25 @@ Build the prompt from `selfie_ready` fields:
 A [mode] selfie of this person, [activity] at [location], wearing [appearance], [time_of_day] lighting, with a [emotion] expression.
 ```
 
+Mode-specific wording:
+
+- `mirror`: keep "mirror selfie" and reflection framing
+- `direct`: keep "selfie ... looking into the lens"
+- `tourist`: use "travel photo ... full-body composition, natural candid framing, not a handheld selfie"
+
 If timeline returns additional stable atmosphere hints, you may apply them naturally:
 
-| Example condition                           | Add to prompt                                     |
-| ------------------------------------------- | ------------------------------------------------- |
-| Weekend-like context                        | "relaxed weekend vibe"                            |
-| Holiday-like context                        | Reference the holiday atmosphere naturally        |
-| Weekday evening indoor context              | "soft warm indoor light, slightly tired but calm" |
+| Example condition              | Add to prompt                                     |
+| ------------------------------ | ------------------------------------------------- |
+| Weekend-like context           | "relaxed weekend vibe"                            |
+| Holiday-like context           | Reference the holiday atmosphere naturally        |
+| Weekday evening indoor context | "soft warm indoor light, slightly tired but calm" |
 
 Apply mode from continuity if not overridden by keywords:
 
 - `continuity.is_continuing: true` → use `direct` (candid, mid-activity)
 - `continuity.is_continuing: false` → use `mirror` (showcasing new state)
+- If explicit travel-photo / tourist keywords are present, or outdoor + no-handheld-selfie signal is clear, use `tourist` (even when continuity exists)
 - If `continuity` is missing, fall back to keyword-based mode selection, then default to `mirror`
 
 **Example — timeline returns home study, evening, organizing work, focused, casual outfit, weekday:**
@@ -143,12 +162,20 @@ A mirror selfie of this person, organizing work files at her home study, wearing
 A direct selfie of this person, reading at a cozy cafe, wearing a light summer dress, afternoon lighting, relaxed weekend vibe, with a content expression.
 ```
 
-#### When timeline context is unavailable (fallback)
-
-Use the user's explicit context directly, or generate a neutral prompt:
+**Example — user requests travel photo at a scenic spot, says handheld selfie is inconvenient:**
 
 ```
-A mirror selfie of this person, [user's explicit context if any], showing full body reflection.
+A travel photo of this person, visiting a seaside boardwalk viewpoint, wearing a light summer outfit, golden-hour lighting, relaxed and cheerful expression, full-body composition, natural candid framing, not a handheld selfie.
+```
+
+#### When timeline context is unavailable (fallback)
+
+Use the user's explicit context directly, select mode from keyword rules first (default `mirror`), then assemble with mode-specific wording:
+
+```
+[mirror]  A mirror selfie of this person, [user's explicit context if any], showing full body reflection.
+[direct]  A selfie of this person, [user's explicit context if any], looking into the lens.
+[tourist] A travel photo of this person, [user's explicit context if any], full-body composition, natural candid framing, not a handheld selfie.
 ```
 
 ### Step 4: Generate Image
@@ -180,14 +207,14 @@ are explicitly declared in `metadata.openclaw.requires.env` for OpenClaw's env-i
 The skill also sets `metadata.openclaw.always: true`, so these declarations do not become hard load-time gates.
 Actual credential validation remains runtime-driven inside `skill.js`, based on the selected provider.
 
-| Variable                 | Required                                                    | Description                                                                          |
-| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `GEMINI_API_KEY`         | Required (if Provider=gemini)                               | Google Gemini API key                                                                |
-| `FAL_KEY`                | Required (if Provider=fal)                                  | fal.ai API key                                                                       |
-| `LAOZHANG_API_KEY`       | Required (if Provider=laozhang)                             | laozhang.ai API key (`sk-xxx`); get it at [api.laozhang.ai](https://api.laozhang.ai) |
-| `Provider`               | Optional                                                    | Image provider: `gemini`, `fal`, or `laozhang`                                       |
-| `AvatarBlendEnabled`     | Optional                                                    | Enable or disable multi-reference avatar blending                                    |
-| `AvatarMaxRefs`          | Optional                                                    | Maximum number of reference images to blend                                          |
+| Variable             | Required                        | Description                                                                          |
+| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------ |
+| `GEMINI_API_KEY`     | Required (if Provider=gemini)   | Google Gemini API key                                                                |
+| `FAL_KEY`            | Required (if Provider=fal)      | fal.ai API key                                                                       |
+| `LAOZHANG_API_KEY`   | Required (if Provider=laozhang) | laozhang.ai API key (`sk-xxx`); get it at [api.laozhang.ai](https://api.laozhang.ai) |
+| `Provider`           | Optional                        | Image provider: `gemini`, `fal`, or `laozhang`                                       |
+| `AvatarBlendEnabled` | Optional                        | Enable or disable multi-reference avatar blending                                    |
+| `AvatarMaxRefs`      | Optional                        | Maximum number of reference images to blend                                          |
 
 Credential requirements are provider-specific:
 
@@ -224,12 +251,12 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 ## External Endpoints And Data Flow
 
-| Endpoint / path                     | When used            | Data sent                                                                                   |
-| ----------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
-| Google Gemini API                   | `Provider=gemini`    | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`                |
-| fal API                             | `Provider=fal`       | Prompt text and public reference image URLs from `AvatarsURLs`                              |
-| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang`  | Prompt text and local reference images (`Avatar` / `AvatarsDir`, uploaded as base64)         |
-| Local OpenClaw CLI                  | Always for delivery  | Target channel, target id, caption text, and generated media path/URL                       |
+| Endpoint / path                     | When used           | Data sent                                                                            |
+| ----------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| Google Gemini API                   | `Provider=gemini`   | Prompt text and selected local reference images from `Avatar` / `AvatarsDir`         |
+| fal API                             | `Provider=fal`      | Prompt text and public reference image URLs from `AvatarsURLs`                       |
+| laozhang.ai API (`api.laozhang.ai`) | `Provider=laozhang` | Prompt text and local reference images (`Avatar` / `AvatarsDir`, uploaded as base64) |
+| Local OpenClaw CLI                  | Always for delivery | Target channel, target id, caption text, and generated media path/URL                |
 
 ## Security And Privacy
 

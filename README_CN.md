@@ -114,21 +114,18 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 
 ### 支持与 stella-timeline-plugin 联动
 
-当触发自拍时如果没有任何场景要求，比如只说“发张自拍”，Stella 会尝试用 stella-timeline-plugin 做上下文补全：
+当触发自拍时如果没有明确场景要求，比如只说“发张自拍”，Stella 会尝试用家族插件 [stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 做上下文补全：
 
-[stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 是一个可以赋予 OpenClaw 时间感知力与连续记忆的插件，无论任何时候，当 OpenClaw 需要一个对“此刻”或“某刻”的具象描述时，stella-timeline-plugin 都会先从记忆系统中获取，如果没有就会结合 OpenClaw 的[人格设定](https://clawhub.ai/tower1229/persona-skill)为其编织一个合理的记忆，从而使其拥有如人一般的连续记忆。而这就是最妙的部分！
+stella-timeline-plugin 可以赋予 OpenClaw 时间感知与连续记忆能力，使 OpenClaw 在任何时候都能对“此刻”或“某刻”提供一个合理的具象描述。大致逻辑是先从记忆系统中获取，如果没有就会结合 OpenClaw 的[人格设定](https://clawhub.ai/tower1229/persona-skill)（SOUL+MEMORY+IDENTITY）为其编织一个合理的记忆，使其仿佛拥有真正的连续记忆。而这可以与 Stella 产生奇妙的联动效果！
 
-如果刚才你正在和 OpenClaw 聊某件事，它会自动“延续”你们的聊天场景，给你一张符合当前状态的照片，仿佛刚才它就在某处真实的经历着这件事。
+- 会话粘连：如果刚才你正在和 OpenClaw 聊某件事，此时的自拍会自动“延续”你们的聊天场景，仿佛刚才它就在某处真实的经历着这件事。
+- 接入真实记忆：优先检索记忆系统（会话+长期记忆+短期记忆），将真实发生的事具象化。
+- 记忆编织：如果目标时间没有记忆，主动编织一个符合人设的合理记忆，完全无害，但是沉浸感拉满。
+- 氛围感：包括作息时间、周末、节假日等，都会影响穿着和氛围，而且根据人格对不同事件也会产生不同的人物状态。
+- 真实世界规律：得益于 NanoBanana2 的真实世界感知能力，户外天气会与真实世界实时同步。着装也会受到包括季节、气候、活动类型等影响，而且当天的室内着装是稳定的，不会随便更换。
+- 镜头变化，连续性场景会使用自拍模式，状态变化的场景会使用镜像模式或游客模式。
 
-如果会话中没有临近记忆，它就会主动编织一个符合人设（SOUL+MEMORY+IDENTITY）的合理记忆。
-
-不止符合人设，还符合真实世界规律。
-
-包括作息时间、周末休息、节假日氛围等，比如工作日晚间会更偏居家收尾氛围，周末会更放松。着装也会符合真实世界规律，包括季节、气候、活动类型等，而且除非特殊活动，否则当天的着装也是稳定的，不会随便更换。
-
-而且事件性质也会影响镜头变化，连续性场景会使用自拍模式，状态变化的场景会使用镜像模式。
-
-当然了，没有安装 stella-timeline-plugin 也不影响正常使用，只是无法支持与 stella-timeline-plugin 联动。
+当然了，没有安装 stella-timeline-plugin 也不影响正常使用，只是无法实现这些联动。
 
 ## 异常体验
 
