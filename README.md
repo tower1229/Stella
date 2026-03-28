@@ -114,18 +114,27 @@ To generate highly consistent character images, reference image setup is critica
 
 ### Integration with `stella-timeline-plugin`
 
-When selfie generation is triggered without an explicit scene request (for example, just "send a selfie"), Stella can use the sibling plugin [`stella-timeline-plugin`](https://www.npmjs.com/package/stella-timeline-plugin) for context completion:
+When the user has already clearly asked for a selfie or photo, but does not provide an explicit scene request (for example, just "send a selfie"), or only gives a partial scene such as "send a selfie by the window" or "send a photo outside", Stella can use the sibling plugin [`stella-timeline-plugin`](https://www.npmjs.com/package/stella-timeline-plugin) for context completion:
 
 `stella-timeline-plugin` gives OpenClaw time awareness and continuity memory, so it can produce plausible and concrete descriptions for "this moment" or "that moment." In short, it first checks the memory system. If nothing is found, it combines OpenClaw's [persona setup](https://clawhub.ai/tower1229/persona-skill) (`SOUL` + `MEMORY` + `IDENTITY`) to weave a reasonable memory and preserve continuity. This creates a strong synergy with Stella.
 
 - Session continuity: if you were just discussing something with OpenClaw, the selfie can naturally continue that scene, as if it were really experiencing it.
 - Real memory integration: the system prioritizes memory retrieval (session + long-term + short-term) and turns real events into concrete visual context.
 - Memory weaving: if no memory exists for the target time, it proactively creates a harmless, persona-consistent memory to maintain immersion.
-- Atmosphere adaptation: schedules, weekends, and holidays can influence outfit and mood; persona traits also shape state across different events.
-- Real-world consistency: thanks to NanoBanana2's real-world perception, outdoor weather can sync with real-world conditions. Clothing is influenced by season, climate, and activity type, and same-day indoor outfits remain stable instead of changing randomly.
+- Partial-scene completion: as long as the user has already made the image intent clear, even requests like "send one from now", "by the window", or "outside somewhere" can be completed with reality anchors like location, activity, emotion, appearance, and time of day.
+- Same-moment continuity: if chat says she is organizing files in her study, the selfie can stay in that study, in that mood, in that same-day outfit, instead of jumping to a disconnected generic scene.
+- Richer scene details: timeline can contribute grounded props and spatial cues like a window seat, desk clutter, coffee cups, railings, books, or street-side details, making the image feel casually real instead of template-like.
+- More natural light and framing: "afternoon in a cafe" can mean window backlight, warm indoor spill, mirror framing, or candid travel-photo composition. Timeline helps Stella choose a more believable visual language.
+- Atmosphere adaptation: schedules, weekends, holidays, and social context can influence outfit, mood, and scene energy; persona traits also shape how the character feels across different moments.
+- Real-world anchors: when timeline can provide a concrete city, date, and local time, Stella can pass those anchors to NanoBanana2 so outdoor scenes, or indoor scenes with visible outdoors, feel like they were really captured in that place at that moment.
+- Real-world consistency: thanks to NanoBanana2's real-world perception, outdoor weather can sync with real-world conditions. Clothing is influenced by season, climate, and activity type, while same-day indoor outfits remain stable instead of changing randomly.
+- Indoor/outdoor boundary awareness: if the subject is indoors by a window, the outdoors can stay weather-accurate while the outfit remains indoor-appropriate; if the subject is truly outside, weather can influence clothing much more directly.
+- User intent stays first: if the user already specified the outfit, location, or style, timeline should not override it. It mainly fills the missing realistic details that make the final image feel more alive.
 - Camera behavior: continuity scenes use selfie mode, while state-shift scenes use mirror mode or tourist mode.
 
 Stella still works normally without `stella-timeline-plugin`; you just will not get these integration effects.
+
+The detailed consumption and prompt-assembly rules for optional timeline enrichment live in [references/timeline-integration.md](references/timeline-integration.md).
 
 ## Failure Experience
 
@@ -207,6 +216,6 @@ Stella/
 │   └── providers/            # Provider unit tests
 ├── smoke/
 │   └── avatars/              # Smoke test reference images
-└── docs/
-    └── protocol.md           # I/O contract and timeline integration rules
+└── references/
+    └── timeline-integration.md # Optional timeline enrichment rules
 ```
