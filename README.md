@@ -114,14 +114,14 @@ To generate highly consistent character images, reference image setup is critica
 
 ### Integration with `stella-timeline-plugin`
 
-When selfie generation is triggered without an explicit scene request (for example, just "send a selfie"), or when the user provides only a partial scene such as "by the window" or "somewhere outside", Stella can use the sibling plugin [`stella-timeline-plugin`](https://www.npmjs.com/package/stella-timeline-plugin) for context completion:
+When the user has already clearly asked for a selfie or photo, but does not provide an explicit scene request (for example, just "send a selfie"), or only gives a partial scene such as "send a selfie by the window" or "send a photo outside", Stella can use the sibling plugin [`stella-timeline-plugin`](https://www.npmjs.com/package/stella-timeline-plugin) for context completion:
 
 `stella-timeline-plugin` gives OpenClaw time awareness and continuity memory, so it can produce plausible and concrete descriptions for "this moment" or "that moment." In short, it first checks the memory system. If nothing is found, it combines OpenClaw's [persona setup](https://clawhub.ai/tower1229/persona-skill) (`SOUL` + `MEMORY` + `IDENTITY`) to weave a reasonable memory and preserve continuity. This creates a strong synergy with Stella.
 
 - Session continuity: if you were just discussing something with OpenClaw, the selfie can naturally continue that scene, as if it were really experiencing it.
 - Real memory integration: the system prioritizes memory retrieval (session + long-term + short-term) and turns real events into concrete visual context.
 - Memory weaving: if no memory exists for the target time, it proactively creates a harmless, persona-consistent memory to maintain immersion.
-- Partial-scene completion: even if the user only says "send one from now", "by the window", or "outside somewhere", timeline can fill in reality anchors like location, activity, emotion, appearance, and time of day.
+- Partial-scene completion: as long as the user has already made the image intent clear, even requests like "send one from now", "by the window", or "outside somewhere" can be completed with reality anchors like location, activity, emotion, appearance, and time of day.
 - Same-moment continuity: if chat says she is organizing files in her study, the selfie can stay in that study, in that mood, in that same-day outfit, instead of jumping to a disconnected generic scene.
 - Richer scene details: timeline can contribute grounded props and spatial cues like a window seat, desk clutter, coffee cups, railings, books, or street-side details, making the image feel casually real instead of template-like.
 - More natural light and framing: "afternoon in a cafe" can mean window backlight, warm indoor spill, mirror framing, or candid travel-photo composition. Timeline helps Stella choose a more believable visual language.
