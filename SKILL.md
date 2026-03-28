@@ -100,77 +100,23 @@ Determine from the user's message:
 
 ### Step 2: Enrich with Timeline Context (Optional)
 
-**Only run this step when the request has no explicit scene keywords** (no outfit, location, activity, or scene description).
+`timeline_resolve` is an optional enhancement, not a prerequisite.
 
-If `timeline_resolve` is available in the current environment, call it:
+- If `timeline_resolve` is unavailable in the current environment, skip this step and proceed with Stella's original behavior.
+- If `timeline_resolve` is available, you may use it when the request has no explicit scene keywords, or when the user provided only partial scene details and timeline can safely fill missing reality anchors.
+- If timeline enrichment is needed, load and follow `docs/timeline-integration.md`.
+- Only enable Nano Banana real-world grounding when the prompt can explicitly include a concrete `city` plus an exact local date/time anchor from timeline data. If those anchors are missing, do not claim real-world synchronization.
+- If timeline returns `fact.status === "empty"`, is missing `result.consumption`, or any error occurs, immediately fall back to Step 3 without mentioning timeline failure to the user.
 
-```
-timeline_resolve({ query: "现在" })
-```
-
-Parse the result:
-
-- If `result.consumption.selfie_ready` exists and `result.consumption.fact.status === "resolved"`:
-  - Extract: `location`, `activity`, `emotion`, `appearance`, `time_of_day`, `summary`
-  - Read `result.consumption.fact.continuity` for mode selection (if present)
-  - Proceed to Step 3 with timeline context
-- If timeline returns `fact.status === "empty"`, or `timeline_resolve` is not available, or any error occurs:
-  - Proceed to Step 3 without timeline context (fallback to default behavior)
-
-**Never block image generation on timeline availability.** Timeline enrichment is best-effort.
+**Never block image generation on timeline availability.** Timeline enrichment is always best-effort and must not degrade Stella's original functionality.
 
 ### Step 3: Assemble Prompt
 
-#### When timeline context is available (`selfie_ready` resolved)
+Select mode from keyword rules first, then assemble the prompt.
 
-Build the prompt from `selfie_ready` fields:
+If you loaded `docs/timeline-integration.md` and obtained usable timeline context, apply its merge and prompt rules.
 
-```
-A [mode] selfie of this person, [activity] at [location], wearing [appearance], [time_of_day] lighting, with a [emotion] expression.
-```
-
-Mode-specific wording:
-
-- `mirror`: keep "mirror selfie" and reflection framing
-- `direct`: keep "selfie ... looking into the lens"
-- `tourist`: use "travel photo ... full-body composition, natural candid framing, not a handheld selfie"
-
-If timeline returns additional stable atmosphere hints, you may apply them naturally:
-
-| Example condition              | Add to prompt                                     |
-| ------------------------------ | ------------------------------------------------- |
-| Weekend-like context           | "relaxed weekend vibe"                            |
-| Holiday-like context           | Reference the holiday atmosphere naturally        |
-| Weekday evening indoor context | "soft warm indoor light, slightly tired but calm" |
-
-Apply mode from continuity if not overridden by keywords:
-
-- `continuity.is_continuing: true` → use `direct` (candid, mid-activity)
-- `continuity.is_continuing: false` → use `mirror` (showcasing new state)
-- If explicit travel-photo / tourist keywords are present, or outdoor + no-handheld-selfie signal is clear, use `tourist` (even when continuity exists)
-- If `continuity` is missing, fall back to keyword-based mode selection, then default to `mirror`
-
-**Example — timeline returns home study, evening, organizing work, focused, casual outfit, weekday:**
-
-```
-A mirror selfie of this person, organizing work files at her home study, wearing a casual home outfit, soft warm indoor light, slightly tired but calm, with a focused expression.
-```
-
-**Example — timeline returns cafe, afternoon, reading, content, light summer dress, weekend:**
-
-```
-A direct selfie of this person, reading at a cozy cafe, wearing a light summer dress, afternoon lighting, relaxed weekend vibe, with a content expression.
-```
-
-**Example — user requests travel photo at a scenic spot, says handheld selfie is inconvenient:**
-
-```
-A travel photo of this person, visiting a seaside boardwalk viewpoint, wearing a light summer outfit, golden-hour lighting, relaxed and cheerful expression, full-body composition, natural candid framing, not a handheld selfie.
-```
-
-#### When timeline context is unavailable (fallback)
-
-Use the user's explicit context directly, select mode from keyword rules first (default `mirror`), then assemble with mode-specific wording:
+Otherwise, use the user's explicit context directly and keep Stella's original fallback behavior:
 
 ```
 [mirror]  A mirror selfie of this person, [user's explicit context if any], showing full body reflection.

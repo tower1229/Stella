@@ -127,6 +127,8 @@ When selfie generation is triggered without an explicit scene request (for examp
 
 Stella still works normally without `stella-timeline-plugin`; you just will not get these integration effects.
 
+The detailed consumption and prompt-assembly rules for optional timeline enrichment live in [docs/timeline-integration.md](docs/timeline-integration.md).
+
 ## Failure Experience
 
 When generation fails, Stella tries to send a short text notice to the same target. If the delivery path is available, this avoids a silent "no response" experience.
@@ -208,5 +210,5 @@ Stella/
 ├── smoke/
 │   └── avatars/              # Smoke test reference images
 └── docs/
-    └── protocol.md           # I/O contract and timeline integration rules
+    └── timeline-integration.md # Optional timeline enrichment rules
 ```
