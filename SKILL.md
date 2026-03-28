@@ -104,7 +104,7 @@ Determine from the user's message:
 
 - If `timeline_resolve` is unavailable in the current environment, skip this step and proceed with Stella's original behavior.
 - If `timeline_resolve` is available, you may use it when the request has no explicit scene keywords, or when the user provided only partial scene details and timeline can safely fill missing reality anchors.
-- If timeline enrichment is needed, load and follow `docs/timeline-integration.md`.
+- If timeline enrichment is needed, load and follow `references/timeline-integration.md`.
 - Only enable Nano Banana real-world grounding when the prompt can explicitly include a concrete `city` plus an exact local date/time anchor from timeline data. If those anchors are missing, do not claim real-world synchronization.
 - If timeline returns `fact.status === "empty"`, is missing `result.consumption`, or any error occurs, immediately fall back to Step 3 without mentioning timeline failure to the user.
 
@@ -114,7 +114,7 @@ Determine from the user's message:
 
 Select mode from keyword rules first, then assemble the prompt.
 
-If you loaded `docs/timeline-integration.md` and obtained usable timeline context, apply its merge and prompt rules.
+If you loaded `references/timeline-integration.md` and obtained usable timeline context, apply its merge and prompt rules.
 
 Otherwise, use the user's explicit context directly and keep Stella's original fallback behavior:
 

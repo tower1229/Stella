@@ -134,7 +134,7 @@ When the user has already clearly asked for a selfie or photo, but does not prov
 
 Stella still works normally without `stella-timeline-plugin`; you just will not get these integration effects.
 
-The detailed consumption and prompt-assembly rules for optional timeline enrichment live in [docs/timeline-integration.md](docs/timeline-integration.md).
+The detailed consumption and prompt-assembly rules for optional timeline enrichment live in [references/timeline-integration.md](references/timeline-integration.md).
 
 ## Failure Experience
 
@@ -216,6 +216,6 @@ Stella/
 │   └── providers/            # Provider unit tests
 ├── smoke/
 │   └── avatars/              # Smoke test reference images
-└── docs/
+└── references/
     └── timeline-integration.md # Optional timeline enrichment rules
 ```
