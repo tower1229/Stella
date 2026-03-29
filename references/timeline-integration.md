@@ -1,15 +1,38 @@
 # Timeline Integration for Stella
 
-Load this document only when `timeline_resolve` is available in the current environment and the current selfie request would benefit from timeline enrichment.
+Load this document only when `timeline_resolve` is available in the current environment and the current selfie request is `Sparse`.
 
-If `timeline_resolve` is unavailable, fails, times out, returns `fact.status === "empty"`, or does not contain usable `result.consumption`, skip this document and continue with Stella's original prompt behavior from `SKILL.md`.
+If `timeline_resolve` is unavailable, fails, times out, returns `fact.status === "empty"`, or does not contain usable `result.consumption`, skip this document and continue with Stella's default prompt behavior from `SKILL.md`.
 
 ## Compatibility Boundary
 
 - `timeline_resolve` is optional. Stella must work normally without it.
-- Timeline enrichment is best-effort only.
+- Timeline enhancement is best-effort only.
 - Never refuse, delay, or noticeably degrade image generation because timeline context is missing.
 - Never introduce a hard dependency on timeline-specific env vars, install steps, or internal field paths.
+
+## Sparse Eligibility
+
+Use this document only for `Sparse` requests, meaning the user asked for a photo without a clear scene, outfit, location, activity, or camera requirement.
+
+Typical Sparse requests:
+
+- “发张自拍”
+- “发张照片”
+- “想看看你”
+- “send a selfie”
+- “send a photo”
+- “show me what you look like”
+
+Non-Sparse requests do **not** use timeline enhancement, even if timeline is available.
+
+Typical non-Sparse requests:
+
+- “发张海边的自拍”
+- “发张穿红裙子的自拍”
+- “发张窗边的自拍”
+- “send a mirror selfie in a black dress”
+- “show me a third-person photo at the beach”
 
 ## Stable Input Contract
 
@@ -34,6 +57,7 @@ Optional enhancement fields:
 - `consumption.scene.social_context`
 - `consumption.scene.appearance_change_expected`
 - `consumption.scene.appearance_change_reason`
+- `consumption.fact.continuity`
 
 Do not rely on:
 
@@ -42,56 +66,52 @@ Do not rely on:
 - `trace`
 - `notes`
 
-## When to Use Timeline
+## Timeline Role
 
-Use timeline enrichment in either of these cases:
+Timeline is a fact-grounding layer for Sparse requests.
 
-- The user gave no scene details and wants "a selfie", "a pic", "show me what you look like", etc.
-- The user gave partial scene details, and timeline can safely fill missing reality anchors such as current activity, mood, city, local time, outdoor conditions, lighting, or same-day outfit continuity.
+Use it to:
 
-Do not use timeline to override strong explicit user intent such as:
+- recover a believable current scene from `result.consumption`
+- supply concrete place / date / time anchors
+- support realistic weather / lighting / indoor-outdoor coherence
+- enrich mood, social context, and continuity details
+- unlock Nano Banana real-world grounding when city plus exact local date/time anchors are available
 
-- A clearly specified outfit, location, or activity
-- A fantasy or stylized scenario
-- A deliberately different city, country, era, or weather setup
-- A request that is obviously non-realistic, cosplay-like, or cinematic in a way that should not be grounded to real-world conditions
+Timeline does not own selfie semantics in general. Stella still owns the capture strategy and final prompt assembly.
 
-In those cases, user intent wins. Timeline may only fill neutral gaps if it does not conflict.
+Structured fields and natural-language fields may both influence the decision. When a natural-language field is decisive, rely on LLM semantic understanding rather than hardcoded script logic.
 
 ## Merge Strategy
 
 Treat timeline as a reality anchor layer, not the source of truth for everything.
 
-Priority order:
+Priority order for Sparse requests:
 
-1. User's explicit request
+1. User's explicit wording, if any
 2. `consumption.selfie_ready`
 3. `consumption.scene`
-4. Stella's original fallback heuristics
+4. Stella's default fallback heuristics
 
 Merge rules:
 
 - Use `selfie_ready` as the base prompt skeleton when present.
-- Use `scene` only to enrich missing or weakly specified details.
-- If the user explicitly names a location or outfit, do not replace it with timeline values.
-- If the user gives a partial scene, allow timeline to fill missing context such as mood, lighting, framing, city/time anchors, or continuity-friendly outfit details.
-- If `appearance_change_expected !== true`, preserve same-day continuity and only make small weather-compatible outfit adjustments.
+- Use `scene` to enrich missing reality details such as city, time, props, lighting, mood, and continuity-friendly appearance details.
+- Do not invent exact real-world synchronization unless city plus exact local date/time anchors are present.
 
-## Camera Mode Selection
+## Capture Strategy for Sparse Requests
 
-Keep Stella's existing keyword-first mode selection.
+When Sparse requests enter timeline enhancement, let the recovered scene guide the most natural capture strategy:
 
-Timeline can refine mode only when the user did not strongly specify otherwise:
+- prefer `mirror` when the recovered scene naturally supports self-presentation or reflective capture
+- prefer `direct` when the recovered scene feels naturally handheld and immediate
+- prefer `third_person` when the recovered scene does not plausibly read as a selfie and a non-selfie viewpoint is more natural
 
-- Continuing same activity or same moment -> prefer `direct`
-- New state, changed outfit, or changed context -> prefer `mirror`
-- Travel-photo keywords, scenic full-body intent, or clear no-handheld-selfie signal -> prefer `tourist`
-
-`framing_hint` may strengthen the chosen mode, but should not overturn a strong explicit user request.
+Do not encode brittle hard mappings such as “fresh moment means mirror.”
 
 ## Outdoor and Real-World Awareness
 
-This is the main place to use Nano Banana 2's real-world perception.
+This is the main place to use Nano Banana's real-world perception for Sparse requests.
 
 Classify the scene into one of these buckets:
 
@@ -101,49 +121,29 @@ Classify the scene into one of these buckets:
 
 Signals can come from:
 
-- user wording
 - `selfie_ready.location`
 - `scene.location_props`
 - `scene.framing_hint`
+- natural-language semantic interpretation of the recovered scene
 
 ### Outdoor
 
 When the scene is truly outdoor, and `scene.city` plus either `scene.calendar_date` or `scene.local_timestamp` are available:
 
-- For Nano Banana real-world grounding, explicitly inject the city and an exact local date anchor into the prompt. Prefer `scene.local_timestamp`; otherwise inject `scene.calendar_date` plus `scene.timezone` if available.
-- Let the image feel like it was just taken in that real city at that local date and time.
-- Let outdoor light, sky condition, pavement dryness, seasonal vegetation, and air feel match the real world naturally.
-- Adjust clothing to match likely weather and activity, while preserving the character's established style.
+- explicitly inject the city and an exact local date/time anchor into the prompt
+- let the image feel like it was just taken in that real city at that local moment
+- let outdoor light, sky condition, pavement dryness, seasonal vegetation, and air feel match the real world naturally
+- adjust outfit details to fit likely weather and activity while preserving the character's style
 
-If exact city/date anchors are not available, do not rely on vague wording like "current weather" or "today there". Fall back to general atmosphere cues instead of claiming real-world synchronization.
-
-Allowed clothing adaptation:
-
-- outer layer
-- sleeve length
-- fabric weight
-- footwear
-- scarf / light layering
-- umbrella / rain protection
-
-Do not randomly change:
-
-- overall fashion identity
-- hairstyle
-- makeup style
-- major silhouette
-- same-day indoor outfit continuity without a reason
+If exact city/date anchors are missing, fall back to general atmosphere cues instead of claiming real-world synchronization.
 
 ### Indoor With Outdoor View
 
 When the scene is indoors but the outside is visible:
 
-- Still explicitly inject city and exact local date/time anchors when available, so the visible outdoors can benefit from Nano Banana's real-world perception.
-- Make the visible outdoors match the city, local date/time, and weather.
-- Keep clothing primarily appropriate for the indoor environment.
-- Only allow light temperature or layering adjustments if naturally justified.
-
-This prevents cases where it is raining outside a cafe window but the subject is incorrectly dressed like they are walking in the rain.
+- still inject city and exact local date/time anchors when available, so the visible outdoors can benefit from real-world perception
+- make the visible outdoors match the city, local date/time, and weather
+- keep clothing primarily appropriate for the indoor environment
 
 ### Indoor Closed
 
@@ -154,7 +154,7 @@ You may still use:
 - `time_of_day`
 - `lighting_hint`
 - `environment_mood`
-- same-day continuity from `appearance`
+- continuity-friendly appearance details
 
 ## Prompt Construction
 
@@ -164,13 +164,13 @@ If `consumption.selfie_ready` is present, use it as the base:
 A [mode] photo of this person, [activity] at [location], wearing [appearance], with a [emotion] expression, [time_of_day] atmosphere.
 ```
 
-Then enrich only when supported by stable fields:
+Then enrich only when supported by timeline facts:
 
-- Add `city` and exact local date/time anchors when they help real-world grounding.
-- Add `location_props` as concrete scene details.
-- Add `lighting_hint` for believable light behavior.
-- Add `framing_hint` for camera composition.
-- Add `environment_mood` and `social_context` as subtle atmosphere cues.
+- add `city` and exact local date/time anchors when they help real-world grounding
+- add `location_props` as concrete scene details
+- add `lighting_hint` for believable light behavior
+- add `framing_hint` as a descriptive cue when it strengthens realism
+- add `environment_mood` and `social_context` as subtle atmosphere cues
 
 For outdoor or outdoor-visible scenes, append an explicit grounding clause with concrete values:
 
@@ -178,34 +178,22 @@ For outdoor or outdoor-visible scenes, append an explicit grounding clause with 
 Make it feel like this was just captured in [city], on [YYYY-MM-DD], at [local time] [timezone if available], with outdoor conditions and ambient light matching the real place and moment naturally.
 ```
 
-For outdoor scenes with weather-aware clothing:
-
-```text
-Adjust outfit details to fit the likely real weather and activity, while preserving the character's established style and continuity.
-```
-
-If `appearance_change_expected !== true`, prefer this stricter clause:
-
-```text
-Keep the same-day outfit continuity and only make minor weather-compatible adjustments if needed.
-```
-
 ## Examples
 
-### No explicit scene, timeline resolves a home study
+### Sparse request, timeline resolves a home study
 
 ```text
 A mirror selfie of this person, organizing work files at her home study, wearing a casual home outfit, soft warm indoor light, slightly tired but calm, with a focused expression.
 ```
 
-### Cafe by the window, outdoor visible
+### Sparse request, cafe by the window, outdoor visible
 
 ```text
 A direct selfie of this person, reading at a cozy cafe window seat, wearing a light spring outfit, relaxed and content, late-afternoon atmosphere. Through the window, make the city outside feel like it was just seen in Shanghai, on 2026-03-28, at 17:40 Asia/Shanghai, with natural weather, sky tone, and ambient light matching the real moment.
 ```
 
-### Outdoor city walk with weather-aware outfit
+### Sparse request, outdoor city walk that reads better as non-selfie
 
 ```text
-A travel photo of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, natural full-body composition, not a handheld selfie. Make it feel like it was just captured in Hangzhou, on 2026-03-28, at 16:20 Asia/Shanghai, with outdoor light, sky condition, and clothing details matching the real weather naturally while preserving the character's style.
+A natural third-person photo of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, natural full-body composition, not a selfie. Make it feel like it was just captured in Hangzhou, on 2026-03-28, at 16:20 Asia/Shanghai, with outdoor light, sky condition, and clothing details matching the real weather naturally while preserving the character's style.
 ```

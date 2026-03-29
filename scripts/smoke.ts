@@ -89,13 +89,13 @@ const SMOKE_CASES: Array<{
   {
     name: "01-test",
     prompt:
-      "A travel photo of this person, 在加拿大滑雪的照片,穿着白色羽绒服和滑雪装备，凝视镜头，full-body composition, natural candid framing, not a handheld selfie.",
+      "A natural third-person photo of this person, 在加拿大滑雪的照片,穿着白色羽绒服和滑雪装备，凝视镜头，full-body composition, natural candid framing, not a selfie.",
     resolution: "1K",
   },
   // {
   //   name: "02-test",
   //   prompt:
-  //     "A travel photo of this person, 在夏威夷沙滩度假，凝视镜头, 换上与环境匹配的服饰，full-body composition, natural candid framing, not a handheld selfie.",
+  //     "A natural third-person photo of this person, 在夏威夷沙滩度假，凝视镜头, 换上与环境匹配的服饰，full-body composition, natural candid framing, not a selfie.",
   //   resolution: "1K",
   // },
 ];

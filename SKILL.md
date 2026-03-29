@@ -51,28 +51,30 @@ Best for: close-up portraits, location shots, emotional expressions
 A selfie of this person, [user's context], looking into the lens.
 ```
 
-### Mode 3: Tourist Photo
+### Mode 3: Third-Person Photo
 
-Best for: outdoor travel scenes where handheld selfie is inconvenient, or explicit travel-photo requests
+Best for: non-selfie viewpoints, including explicit third-person requests and scenes that should not read as a selfie
 
 ```
-A travel photo of this person, [user's context], full-body composition, natural candid framing, not a handheld selfie.
+A natural third-person photo of this person, [user's context], natural composition, not a selfie.
 ```
 
 ### Mode Selection Logic
 
-| Signal                                                          | Auto-Select Mode |
-| --------------------------------------------------------------- | ---------------- |
-| Keywords: outfit, wearing, clothes, dress, suit, fashion        | `mirror`         |
-| Keywords: cafe, restaurant, beach, park, city, location         | `direct`         |
-| Keywords: close-up, portrait, face, eyes, smile                 | `direct`         |
-| Keywords: full-body, mirror, reflection                         | `mirror`         |
-| Keywords: travel photo, tourist photo, 旅拍, 打卡照, 风景合影, 他拍 | `tourist`        |
-| Outdoor + full-body + no-selfie signal (e.g. "不方便手持/没法自拍") | `tourist`        |
-| Timeline `continuity.is_continuing: true` (same activity)       | `direct`         |
-| Timeline `continuity.is_continuing: false` (state just changed) | `mirror`         |
+| Signal | Auto-Select Mode |
+| ------ | ---------------- |
+| Strong user keywords: outfit, wearing, clothes, dress, suit, fashion | `mirror` |
+| Strong user keywords: full-body, mirror, reflection, pose, show the look | `mirror` |
+| Strong user keywords: selfie, close-up, portrait, face, eyes, smile, looking into the lens | `direct` |
+| Strong user keywords: third-person, not a selfie, candid shot, 他拍, 路拍, 抓拍 | `third_person` |
+| Legacy keywords: travel photo, tourist photo, 旅拍, 打卡照, 风景合影 | `third_person` |
 
-Priority guardrail for `tourist`: only trigger when explicit travel-photo keywords exist, or when outdoor/travel context clearly includes a no-handheld-selfie signal.
+Default policy:
+
+- Interpret explicit user requirements first: camera style, outfit emphasis, body framing, scene, pose, and expression.
+- Use `mirror` by default for outfit / full-body / self-presentation requests, even if the user did not explicitly mention a mirror.
+- Use `direct` by default for selfie requests focused on face, emotion, immediacy, or in-the-moment presence.
+- Use `third_person` only when the user explicitly asks for a non-selfie style or clearly describes a shot that should not read as a selfie.
 
 Default mode when no keywords match and timeline is unavailable: `mirror`
 
@@ -91,37 +93,37 @@ Default mode when no keywords match and timeline is unavailable: `mirror`
 Determine from the user's message:
 
 - **Explicit context** (optional): scene, outfit, location, activity — detect from keywords
-- **Mode** (optional): `mirror`, `direct`, or `tourist` — auto-detect from keywords if not specified
+- **Mode** (optional): `mirror`, `direct`, or `third_person` — auto-detect from explicit user intent if not specified
 - **Target channel**: Where to send (e.g., `#general`, `@username`, channel ID)
 - **Channel provider** (optional): Which platform (discord, telegram, whatsapp, slack)
 - **Resolution** (optional): 1K / 2K / 4K — default 1K
 - **Count** (optional): How many images — default 1, only increase if explicitly requested
 - **Has explicit scene?**: Does the request contain any specific scene/outfit/location/activity keywords?
 
-### Step 2: Enrich with Timeline Context (Optional)
+### Step 2: Enrich with Timeline Context (Sparse Requests Only)
 
 `timeline_resolve` is an optional enhancement, not a prerequisite.
 
-- If `timeline_resolve` is unavailable in the current environment, skip this step and proceed with Stella's original behavior.
-- If `timeline_resolve` is available, you may use it when the request has no explicit scene keywords, or when the user provided only partial scene details and timeline can safely fill missing reality anchors.
-- If timeline enrichment is needed, load and follow `references/timeline-integration.md`.
+- If `timeline_resolve` is unavailable in the current environment, skip this step and proceed with Stella's default behavior.
+- If the request is `Sparse` — for example "发张自拍", "发张照片", "想看看你", "send a selfie", "send a photo", "show me what you look like" — and `timeline_resolve` is available, load and follow `references/timeline-integration.md`.
+- If the user already provided a clear scene, outfit, location, activity, or camera requirement, do not use timeline enhancement. Follow the default policy directly.
 - Only enable Nano Banana real-world grounding when the prompt can explicitly include a concrete `city` plus an exact local date/time anchor from timeline data. If those anchors are missing, do not claim real-world synchronization.
 - If timeline returns `fact.status === "empty"`, is missing `result.consumption`, or any error occurs, immediately fall back to Step 3 without mentioning timeline failure to the user.
 
-**Never block image generation on timeline availability.** Timeline enrichment is always best-effort and must not degrade Stella's original functionality.
+**Never block image generation on timeline availability.** Timeline enrichment is best-effort and only applies to Sparse requests.
 
 ### Step 3: Assemble Prompt
 
-Select mode from keyword rules first, then assemble the prompt.
+Select mode from the default policy first.
 
-If you loaded `references/timeline-integration.md` and obtained usable timeline context, apply its merge and prompt rules.
+If the request is Sparse, and you loaded `references/timeline-integration.md` and obtained usable timeline context, apply its Sparse-only merge and prompt rules.
 
 Otherwise, use the user's explicit context directly and keep Stella's original fallback behavior:
 
 ```
 [mirror]  A mirror selfie of this person, [user's explicit context if any], showing full body reflection.
 [direct]  A selfie of this person, [user's explicit context if any], looking into the lens.
-[tourist] A travel photo of this person, [user's explicit context if any], full-body composition, natural candid framing, not a handheld selfie.
+[third_person] A natural third-person photo of this person, [user's explicit context if any], natural composition, not a selfie.
 ```
 
 ### Step 4: Generate Image
