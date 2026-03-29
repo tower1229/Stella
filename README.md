@@ -2,9 +2,9 @@
 
 Help OpenClaw reliably generate **persona-consistent** selfie images. It supports three modes—direct selfie, mirror selfie, and travel photo—and lets you configure multiple reference images to enhance character consistency.
 
-| Direct selfie | Mirror selfie | Travel photo |
-| :---: | :---: | :---: |
-| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Travel Photo](./assets/Travel%20Photo.jpg) |
+|                 Direct selfie                  |                 Mirror selfie                  |                  Travel photo                  |
+| :--------------------------------------------: | :--------------------------------------------: | :--------------------------------------------: |
+| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Tourist Photo](./assets/Tourist%20Photo.jpg) |
 
 ## Installation
 
@@ -49,11 +49,11 @@ Configure everything under `skills.entries.stella-selfie.env` in `~/.openclaw/op
 
 > **Sandbox tip**: If OpenClaw runs in a Docker sandbox, host-side `skills.entries.*.env` injection does not automatically propagate into the container. Also set the same environment variables in `agents.defaults.sandbox.docker.env` (or per-agent sandbox env).
 
-| Option               | Default  | Description                                                                                                                                                      |
-| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Provider`           | `gemini` | Image generation provider: `gemini`, `fal`, or `laozhang`                                                                                                       |
-| `AvatarBlendEnabled` | `true`   | Whether to enable multi-reference blending (`false` ignores `AvatarsDir` and only uses `Avatar`; if `Avatar` is unavailable, generation is rejected)          |
-| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend (detailed behavior depends on your `IDENTITY.md` setup below)                                                     |
+| Option               | Default  | Description                                                                                                                                          |
+| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Provider`           | `gemini` | Image generation provider: `gemini`, `fal`, or `laozhang`                                                                                            |
+| `AvatarBlendEnabled` | `true`   | Whether to enable multi-reference blending (`false` ignores `AvatarsDir` and only uses `Avatar`; if `Avatar` is unavailable, generation is rejected) |
+| `AvatarMaxRefs`      | `3`      | Maximum number of reference images to blend (detailed behavior depends on your `IDENTITY.md` setup below)                                            |
 
 > **Note for `Provider=fal`**: fal image editing APIs only accept HTTP/HTTPS image URLs, not local file paths. To edit with fal, configure `AvatarsURLs` in `IDENTITY.md` with publicly accessible image URLs.
 
