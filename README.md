@@ -1,6 +1,10 @@
-# Stella - [中文说明](README_CN.md)
+# Stella — [中文说明](README_CN.md)
 
-Help OpenClaw generate persona-consistent selfie images with stable quality. Stella supports three providers: [Google Gemini (`gemini-3-pro-image-preview`)](https://aistudio.google.com/app/api-keys), [fal (xAI Grok Imagine)](https://fal.ai/dashboard/keys), and [laozhang.ai (`gemini-3-pro-image-preview`)](https://api.laozhang.ai/token). Multi-reference avatar blending is available to improve character consistency.
+Help OpenClaw reliably generate **persona-consistent** selfie images. It supports three modes—direct selfie, mirror selfie, and travel photo—and lets you configure multiple reference images to enhance character consistency.
+
+| Direct selfie | Mirror selfie | Travel photo |
+| :---: | :---: | :---: |
+| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Travel Photo](./assets/Travel%20Photo.jpg) |
 
 ## Installation
 

@@ -1,6 +1,10 @@
 # Stella — [English README](README.md)
 
-让 OpenClaw 稳定生成**人设一致**的自拍图片。支持 Google Gemini(gemini-3-pro-image-preview)[（API Key）](https://aistudio.google.com/app/api-keys)、fal（xAI Grok Imagine）[（API Key）](https://fal.ai/dashboard/keys)和 laozhang.ai(gemini-3-pro-image-preview)[（API Key）](https://api.laozhang.ai/token) 三种 provider，并支持多张参考图（avatar blending），以增强角色一致性。
+让 OpenClaw 稳定生成**人设一致**的自拍图片。支持 自拍照、镜像照、旅拍照三种模式，并支持设置多张参考图以增强角色一致性。
+
+| 自拍照 | 镜像照 | 旅拍照 |
+| :---: | :---: | :---: |
+| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Travel Photo](./assets/Travel%20Photo.jpg) |
 
 ## 安装
 
