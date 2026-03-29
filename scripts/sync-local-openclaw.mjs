@@ -73,6 +73,40 @@ function run(cmd, args, options = {}) {
   }
 }
 
+function failWithReadonlyTarget(targetDir, error) {
+  const reason =
+    error && typeof error === "object" && "message" in error && typeof error.message === "string"
+      ? error.message
+      : String(error);
+
+  console.error(`[sync] Target is not writable: ${targetDir}`);
+  console.error(`[sync] ${reason}`);
+  console.error(
+    "[sync] Use a writable --target path, or rerun this command in an environment that can write to your local OpenClaw directory."
+  );
+  process.exit(1);
+}
+
+function ensureTargetWritable(targetDir) {
+  try {
+    fs.mkdirSync(targetDir, { recursive: true });
+  } catch (error) {
+    failWithReadonlyTarget(targetDir, error);
+  }
+
+  const probePath = path.join(
+    targetDir,
+    `.stella-sync-write-test-${process.pid}-${Date.now()}`
+  );
+
+  try {
+    fs.writeFileSync(probePath, "");
+    fs.unlinkSync(probePath);
+  } catch (error) {
+    failWithReadonlyTarget(targetDir, error);
+  }
+}
+
 function ensureBuilt() {
   const distDir = path.join(ROOT_DIR, "dist");
   fs.rmSync(distDir, { recursive: true, force: true });
@@ -88,7 +122,7 @@ function ensureBuilt() {
 }
 
 function syncRepo(targetDir) {
-  fs.mkdirSync(targetDir, { recursive: true });
+  ensureTargetWritable(targetDir);
 
   const sourceDir = `${ROOT_DIR}/`;
   const targetWithSlash = `${targetDir}/`;

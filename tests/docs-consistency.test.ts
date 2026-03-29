@@ -39,6 +39,10 @@ describe("selfie/timeline documentation contract", () => {
     expect(timelineDoc).toContain("Use this document only for `Sparse` requests");
     expect(timelineDoc).toContain("Non-Sparse requests do **not** use timeline enhancement");
     expect(timelineDoc).toContain("prefer `third_person`");
+    expect(timelineDoc).toContain(
+      "The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects"
+    );
+    expect(timelineDoc).not.toContain("Make it feel like this was just captured");
     expect(timelineDoc).not.toContain("partial scene details");
     expect(timelineDoc).not.toContain("fresh_moment");
     expect(timelineDoc).not.toContain("prefer `tourist`");

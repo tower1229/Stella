@@ -118,6 +118,8 @@ Select mode from the default policy first.
 
 If the request is Sparse, and you loaded `references/timeline-integration.md` and obtained usable timeline context, apply its Sparse-only merge and prompt rules.
 
+When that timeline enrichment includes outdoor real-world grounding, keep the grounding clause as a separate strong instruction sentence rather than a soft atmosphere phrase like `Make it feel like...`.
+
 Otherwise, use the user's explicit context directly and keep Stella's original fallback behavior:
 
 ```

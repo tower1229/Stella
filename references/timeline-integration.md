@@ -131,9 +131,11 @@ Signals can come from:
 When the scene is truly outdoor, and `scene.city` plus either `scene.calendar_date` or `scene.local_timestamp` are available:
 
 - explicitly inject the city and an exact local date/time anchor into the prompt
-- let the image feel like it was just taken in that real city at that local moment
-- let outdoor light, sky condition, pavement dryness, seasonal vegetation, and air feel match the real world naturally
+- append the real-world grounding clause using this exact strong form:
+  `The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified [city] at the specified [YYYY-MM-DD], at [HH:mm].`
+- let outdoor light, sky condition, pavement dryness, seasonal vegetation, and air feel match the real world naturally through that clause instead of soft atmosphere wording
 - adjust outfit details to fit likely weather and activity while preserving the character's style
+- do not pre-bake conflicting environment outcomes such as `spring evening`, `sunny afternoon`, `rainy street`, `golden-hour light`, or similar weather/lighting conclusions into the main descriptive sentence
 
 If exact city/date anchors are missing, fall back to general atmosphere cues instead of claiming real-world synchronization.
 
@@ -142,6 +144,8 @@ If exact city/date anchors are missing, fall back to general atmosphere cues ins
 When the scene is indoors but the outside is visible:
 
 - still inject city and exact local date/time anchors when available, so the visible outdoors can benefit from real-world perception
+- use the same strong grounding pattern for the visible outdoors:
+  `The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified [city] at the specified [YYYY-MM-DD], at [HH:mm].`
 - make the visible outdoors match the city, local date/time, and weather
 - keep clothing primarily appropriate for the indoor environment
 
@@ -171,11 +175,13 @@ Then enrich only when supported by timeline facts:
 - add `lighting_hint` for believable light behavior
 - add `framing_hint` as a descriptive cue when it strengthens realism
 - add `environment_mood` and `social_context` as subtle atmosphere cues
+- keep atmosphere cues subordinate to grounding; they must not override objective outdoor weather or lighting
+- when real-world grounding is active, avoid descriptive phrases in the main sentence that already decide the outdoor weather, season, sky state, or time-specific light result
 
-For outdoor or outdoor-visible scenes, append an explicit grounding clause with concrete values:
+For outdoor or outdoor-visible scenes, append this explicit grounding clause with concrete values:
 
 ```text
-Make it feel like this was just captured in [city], on [YYYY-MM-DD], at [local time] [timezone if available], with outdoor conditions and ambient light matching the real place and moment naturally.
+The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified [city] at the specified [YYYY-MM-DD], at [HH:mm].
 ```
 
 ## Examples
@@ -189,11 +195,11 @@ A mirror selfie of this person, organizing work files at her home study, wearing
 ### Sparse request, cafe by the window, outdoor visible
 
 ```text
-A direct selfie of this person, reading at a cozy cafe window seat, wearing a light spring outfit, relaxed and content, late-afternoon atmosphere. Through the window, make the city outside feel like it was just seen in Shanghai, on 2026-03-28, at 17:40 Asia/Shanghai, with natural weather, sky tone, and ambient light matching the real moment.
+A direct selfie of this person, reading at a cozy cafe window seat, wearing a light casual outfit, relaxed and content, seated by the window with the city visible outside. The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified Shanghai at the specified 2026-03-28, at 17:40.
 ```
 
 ### Sparse request, outdoor city walk that reads better as non-selfie
 
 ```text
-A natural third-person photo of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, natural full-body composition, not a selfie. Make it feel like it was just captured in Hangzhou, on 2026-03-28, at 16:20 Asia/Shanghai, with outdoor light, sky condition, and clothing details matching the real weather naturally while preserving the character's style.
+A natural third-person photo of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, natural full-body composition, not a selfie. The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified Hangzhou at the specified 2026-03-28, at 16:20.
 ```
