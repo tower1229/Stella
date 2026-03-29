@@ -2,9 +2,9 @@
 
 让 OpenClaw 稳定生成**人设一致**的自拍图片。支持 自拍照、镜像照、旅拍照三种模式，并支持设置多张参考图以增强角色一致性。
 
-| 自拍照 | 镜像照 | 旅拍照 |
-| :---: | :---: | :---: |
-| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Travel Photo](./assets/Travel%20Photo.jpg) |
+|                     自拍照                     |                     镜像照                     |                     旅拍照                     |
+| :--------------------------------------------: | :--------------------------------------------: | :--------------------------------------------: |
+| ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Tourist Photo](./assets/Tourist%20Photo.jpg) |
 
 ## 安装
 
