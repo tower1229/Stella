@@ -87,16 +87,17 @@ const SMOKE_CASES: Array<{
   resolution: Resolution;
 }> = [
   {
-    name: "01-dress",
+    name: "01-test",
     prompt:
-      "A mirror selfie of this person wearing a white short dress, showing full body reflection.",
+      "A travel photo of this person, 在加拿大滑雪的照片,穿着白色羽绒服和滑雪装备，凝视镜头，full-body composition, natural candid framing, not a handheld selfie.",
     resolution: "1K",
   },
-  {
-    name: "02-selfie",
-    prompt: "A selfie of this person back inside a gym, looking into the lens.",
-    resolution: "1K",
-  },
+  // {
+  //   name: "02-test",
+  //   prompt:
+  //     "A travel photo of this person, 在夏威夷沙滩度假，凝视镜头, 换上与环境匹配的服饰，full-body composition, natural candid framing, not a handheld selfie.",
+  //   resolution: "1K",
+  // },
 ];
 
 async function downloadUrlToFile(url: string, destPath: string): Promise<void> {
