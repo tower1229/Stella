@@ -1,6 +1,9 @@
 # Timeline Integration for Stella
 
-Load this document only when `timeline_resolve` is available in the current environment and the current selfie request is `Sparse`.
+Load this document only when `timeline_resolve` is available in the current environment and either:
+
+- the current selfie request is `Sparse`, or
+- the current selfie request clearly refers back to a single recently resolved timeline scene in the current conversation.
 
 If `timeline_resolve` is unavailable, fails, times out, returns `fact.status === "empty"`, or does not contain usable `result.consumption`, skip this document and continue with Stella's default prompt behavior from `SKILL.md`.
 
@@ -11,11 +14,14 @@ If `timeline_resolve` is unavailable, fails, times out, returns `fact.status ===
 - Never refuse, delay, or noticeably degrade image generation because timeline context is missing.
 - Never introduce a hard dependency on timeline-specific env vars, install steps, or internal field paths.
 
-## Sparse Eligibility
+## Eligibility
 
-Use this document only for `Sparse` requests, meaning the user asked for a photo without a clear scene, outfit, location, activity, or camera requirement.
+Use this document in exactly two cases:
 
-Typical Sparse requests:
+- `Sparse current-state requests`: the user asked for a photo without a clear scene, outfit, location, activity, or camera requirement.
+- `Recent-scene callbacks`: the user is clearly asking for a photo of a scene that was just resolved through Timeline in the current conversation.
+
+Typical Sparse current-state requests:
 
 - “发张自拍”
 - “发张照片”
@@ -24,9 +30,16 @@ Typical Sparse requests:
 - “send a photo”
 - “show me what you look like”
 
-Non-Sparse requests do **not** use timeline enhancement, even if timeline is available.
+Typical recent-scene callbacks:
 
-Typical non-Sparse requests:
+- “发一张你打球时的照片”
+- “刚才那个场景来一张”
+- “昨天上午那个状态发张照片”
+- “show me a photo from that scene”
+
+Standalone non-Sparse requests do **not** use timeline enhancement, even if timeline is available.
+
+Typical standalone non-Sparse requests:
 
 - “发张海边的自拍”
 - “发张穿红裙子的自拍”
@@ -68,7 +81,7 @@ Do not rely on:
 
 ## Timeline Role
 
-Timeline is a fact-grounding layer for Sparse requests.
+Timeline is a fact-grounding layer for current-state Sparse requests and explicit callbacks to recently resolved scenes.
 
 Use it to:
 
@@ -86,12 +99,13 @@ Structured fields and natural-language fields may both influence the decision. W
 
 Treat timeline as a reality anchor layer, not the source of truth for everything.
 
-Priority order for Sparse requests:
+Priority order for eligible requests:
 
 1. User's explicit wording, if any
-2. `consumption.selfie_ready`
-3. `consumption.scene`
-4. Stella's default fallback heuristics
+2. the most recent relevant Timeline `result.consumption`, when the current request clearly refers back to it
+3. `consumption.selfie_ready`
+4. `consumption.scene`
+5. Stella's default fallback heuristics
 
 Merge rules:
 
@@ -99,19 +113,58 @@ Merge rules:
 - Use `scene` to enrich missing reality details such as city, time, props, lighting, mood, and continuity-friendly appearance details.
 - Do not invent exact real-world synchronization unless city plus exact local date/time anchors are present.
 
-## Capture Strategy for Sparse Requests
+## Recent Scene Reuse
 
-When Sparse requests enter timeline enhancement, let the recovered scene guide the most natural capture strategy:
+If the current conversation already contains a single recent successful Timeline result, and the user is clearly asking for a photo of that same scene, do not call `timeline_resolve` again.
+
+Reuse the most recent relevant `result.consumption` directly when all of the following are true:
+
+- the prior Timeline result succeeded and contains usable `consumption.selfie_ready` or `consumption.scene`
+- the current request clearly refers back to that scene
+- there is only one plausible recent scene candidate
+- the conversation has not drifted to a different event
+
+If any of those checks fail, do not guess. Either fall back to Stella's normal explicit-scene behavior, or call `timeline_resolve` using the query strategy below.
+
+## Timeline Query Strategy
+
+If you need a fresh Timeline call, use one of these paths:
+
+1. Current-state Sparse request:
+   Use the fixed query `现在`.
+
+2. User-provided time or scene wording:
+   Pass the user's exact wording through when it already contains the needed time or event anchor.
+
+3. Elliptical callback without enough wording:
+   Build a minimal natural-language anchor query that preserves only `你` plus the time anchor or event anchor.
+
+Allowed minimal-anchor examples:
+
+- `昨天上午你打球时的场景`
+- `刚才那个场景`
+- `你昨天上午那个状态`
+
+Forbidden query rewrites:
+
+- do not introduce names such as `小刘`, `Leon`, or other third-person substitutions
+- do not expand into output-slot questions such as `你在哪`, `穿什么`, `看起来怎么样`
+- do not inject a new time anchor such as `今晚九点左右` unless the user explicitly asked for that time
+- do not rewrite a callback into a different subject
+
+## Capture Strategy
+
+When an eligible request enters timeline enhancement, let the recovered scene guide the most natural capture strategy:
 
 - prefer `mirror` when the recovered scene naturally supports self-presentation or reflective capture
 - prefer `direct` when the recovered scene feels naturally handheld and immediate
-- prefer `third_person` when the recovered scene does not plausibly read as a selfie and a non-selfie viewpoint is more natural
+- for requests explicitly asking for a selfie, do not switch to `third_person`; keep the image selfie-coded even when the recovered scene is weakly staged
 
 Do not encode brittle hard mappings such as “fresh moment means mirror.”
 
 ## Outdoor and Real-World Awareness
 
-This is the main place to use Nano Banana's real-world perception for Sparse requests.
+This is the main place to use Nano Banana's real-world perception for eligible requests.
 
 Classify the scene into one of these buckets:
 
@@ -164,6 +217,10 @@ You may still use:
 
 If `consumption.selfie_ready` is present, use it as the base:
 
+- The photographed subject is always Stella/the assistant, never the human user.
+- If a timeline description appears to describe the user instead of the assistant, ignore the timeline enhancement and fall back to Stella's default selfie behavior for that request.
+
+
 ```text
 A [mode] photo of this person, [activity] at [location], wearing [appearance], with a [emotion] expression, [time_of_day] atmosphere.
 ```
@@ -201,5 +258,5 @@ A direct selfie of this person, reading at a cozy cafe window seat, wearing a li
 ### Sparse request, outdoor city walk that reads better as non-selfie
 
 ```text
-A natural third-person photo of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, natural full-body composition, not a selfie. The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified Hangzhou at the specified 2026-03-28, at 16:20.
+A direct selfie of this person, walking along a riverside street in Hangzhou, wearing a stylish weather-appropriate outfit, relaxed and cheerful, handheld framing, clearly a selfie. The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects of the specified Hangzhou at the specified 2026-03-28, at 16:20.
 ```
