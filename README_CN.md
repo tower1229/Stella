@@ -116,15 +116,14 @@ Use the `stella-selfie` skill whenever the user asks for a picture of you — in
 
 要生成人物一致性强的图片，需要合理设置参考图。推荐使用 Gemini 或 laozhang 作为 provider，并设置 `AvatarBlendEnabled=true`，然后配置 `AvatarsDir` 并放入同一人物的参考图。推荐至少 3 张参考图，以增强角色一致性。
 
-### 支持与 stella-timeline-plugin 联动
+### 与 stella-timeline-plugin 联动
 
-当用户已经明确要“发张自拍 / 发张照片 / 看看你现在什么样”，但没有明确场景要求，比如只说“发张自拍”，或者只给了一半场景，比如“发张自拍，在窗边的”“来张照片，外面的”，Stella 会尝试用家族插件 [stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 做上下文补全：
+当用户已经明确要“发张自拍 / 发张照片 / 看看你现在什么样”，但没有明确场景要求，或者只给了一半场景，比如“发张自拍，在窗边的”“来张照片，外面的”，Stella 会尝试调用家族插件 [stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 做上下文补全：
 
-stella-timeline-plugin 可以赋予 OpenClaw 时间感知与连续记忆能力，使 OpenClaw 在任何时候都能对“此刻”或“某刻”提供一个合理的具象描述。大致逻辑是先从记忆系统中获取，如果没有就会结合 OpenClaw 的[人格设定](https://clawhub.ai/tower1229/persona-skill)（SOUL+MEMORY+IDENTITY）为其编织一个合理的记忆，使其仿佛拥有真正的连续记忆。而这可以与 Stella 产生奇妙的联动效果！
+stella-timeline-plugin 可以赋予 OpenClaw 时间感知与连续记忆能力，使 OpenClaw 在任何时候都能对“此刻”或“某刻”提供一个合理的具象描述，而这可以与 Stella 产生奇妙的联动效果。
 
-- 会话粘连：如果刚才你正在和 OpenClaw 聊某件事，此时的自拍会自动“延续”你们的聊天场景，仿佛刚才它就在某处真实的经历着这件事。
 - 接入真实记忆：优先检索记忆系统（会话+长期记忆+短期记忆），将真实发生的事具象化。
-- 记忆编织：如果目标时间没有记忆，主动编织一个符合人设的合理记忆，完全无害，但是沉浸感拉满。
+- 记忆编织：如果目标时间没有记忆，会主动编织一个符合人设的合理记忆，完全无害，但是沉浸感拉满。
 - 半句也能接上：前提是你已经明确在要图片。比如“来张现在的自拍”“发张照片，在窗边的”“来张外面的图”，timeline 也能把地点、活动、情绪、穿着、时段这些关键现实锚点补齐，不用你自己把 prompt 写得很累。
 - 同一时刻的真实感：聊天里说她在家里书房整理工作，自拍里也会尽量还是那个书房、那件衣服、那个状态，而不是突然跳到毫不相干的场景里。
 - 场景细节更像真的：除了地点和活动，timeline 还能补出窗边座位、桌面物件、街边栏杆、书堆、咖啡杯这类细节，让画面更像“刚刚随手拍的”，而不是空洞的模板图。
