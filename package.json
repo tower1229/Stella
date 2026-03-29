@@ -26,6 +26,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "ts-node scripts/smoke.ts --outdir ./out",
+    "sync:local": "node ./scripts/sync-local-openclaw.mjs",
     "release:clawhub": "node ./scripts/release-clawhub.mjs"
   },
   "dependencies": {
