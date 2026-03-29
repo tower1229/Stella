@@ -18,27 +18,31 @@ describe("selfie/timeline documentation contract", () => {
     expect(skill).toContain("Legacy keywords: travel photo, tourist photo, 旅拍, 打卡照, 风景合影 | `third_person`");
   });
 
-  it("documents mirror as the default outfit/full-body mode and timeline as Sparse-only", () => {
+  it("documents mirror as the default outfit/full-body mode and timeline recall paths", () => {
     const skill = readRepoFile("SKILL.md");
 
     expect(skill).toContain(
       "Use `mirror` by default for outfit / full-body / self-presentation requests"
     );
-    expect(skill).toContain("### Step 2: Enrich with Timeline Context (Sparse Requests Only)");
-    expect(skill).toContain('If the request is `Sparse`');
+    expect(skill).toContain("### Step 2: Enrich with Timeline Context Or Recent Scene Recall");
+    expect(skill).toContain('If the request is a current-state `Sparse` prompt');
+    expect(skill).toContain("If the current request clearly refers back to a single recently resolved timeline scene");
     expect(skill).toContain(
-      "If the user already provided a clear scene, outfit, location, activity, or camera requirement, do not use timeline enhancement."
+      "If the user already provided a clear standalone scene, outfit, location, activity, or camera requirement and it is not a callback to a recently resolved timeline scene, do not use timeline enhancement."
     );
     expect(skill).not.toContain("when the user provided only partial scene details");
   });
 
-  it("defines timeline enhancement as Sparse-only and removes brittle mode mappings", () => {
+  it("defines timeline query rules and recent-scene reuse", () => {
     const timelineDoc = readRepoFile("references", "timeline-integration.md");
 
-    expect(timelineDoc).toContain("## Sparse Eligibility");
-    expect(timelineDoc).toContain("Use this document only for `Sparse` requests");
-    expect(timelineDoc).toContain("Non-Sparse requests do **not** use timeline enhancement");
-    expect(timelineDoc).toContain("prefer `third_person`");
+    expect(timelineDoc).toContain("## Eligibility");
+    expect(timelineDoc).toContain("Typical recent-scene callbacks");
+    expect(timelineDoc).toContain("## Recent Scene Reuse");
+    expect(timelineDoc).toContain("## Timeline Query Strategy");
+    expect(timelineDoc).toContain("Use the fixed query `现在`.");
+    expect(timelineDoc).toContain("do not introduce names such as `小刘`, `Leon`, or other third-person substitutions");
+    expect(timelineDoc).not.toContain("prefer `third_person` when the recovered scene does not plausibly read as a selfie");
     expect(timelineDoc).toContain(
       "The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects"
     );
@@ -48,7 +52,7 @@ describe("selfie/timeline documentation contract", () => {
     expect(timelineDoc).not.toContain("prefer `tourist`");
   });
 
-  it("keeps README and README_CN aligned with third-person wording and Sparse-only timeline usage", () => {
+  it("keeps README and README_CN aligned with third-person wording and timeline usage", () => {
     const readme = readRepoFile("README.md");
     const readmeCn = readRepoFile("README_CN.md");
 

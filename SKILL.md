@@ -100,17 +100,19 @@ Determine from the user's message:
 - **Count** (optional): How many images — default 1, only increase if explicitly requested
 - **Has explicit scene?**: Does the request contain any specific scene/outfit/location/activity keywords?
 
-### Step 2: Enrich with Timeline Context (Sparse Requests Only)
+### Step 2: Enrich with Timeline Context Or Recent Scene Recall
 
 `timeline_resolve` is an optional enhancement, not a prerequisite.
 
 - If `timeline_resolve` is unavailable in the current environment, skip this step and proceed with Stella's default behavior.
-- If the request is `Sparse` — for example "发张自拍", "发张照片", "想看看你", "send a selfie", "send a photo", "show me what you look like" — and `timeline_resolve` is available, load and follow `references/timeline-integration.md`.
-- If the user already provided a clear scene, outfit, location, activity, or camera requirement, do not use timeline enhancement. Follow the default policy directly.
+- If the request is a current-state `Sparse` prompt — for example "发张自拍", "发张照片", "想看看你", "send a selfie", "send a photo", "show me what you look like" — and `timeline_resolve` is available, load and follow `references/timeline-integration.md`.
+- If the current request clearly refers back to a single recently resolved timeline scene in the current conversation, load and follow `references/timeline-integration.md` even if the photo request itself is not Sparse.
+- If the user already provided a clear standalone scene, outfit, location, activity, or camera requirement and it is not a callback to a recently resolved timeline scene, do not use timeline enhancement. Follow the default policy directly.
+- When you do call `timeline_resolve`, do not freely rewrite the request into output-slot questions. Use the fixed query rules in `references/timeline-integration.md`.
 - Only enable Nano Banana real-world grounding when the prompt can explicitly include a concrete `city` plus an exact local date/time anchor from timeline data. If those anchors are missing, do not claim real-world synchronization.
 - If timeline returns `fact.status === "empty"`, is missing `result.consumption`, or any error occurs, immediately fall back to Step 3 without mentioning timeline failure to the user.
 
-**Never block image generation on timeline availability.** Timeline enrichment is best-effort and only applies to Sparse requests.
+**Never block image generation on timeline availability.** Timeline enrichment is best-effort and should only be used for current-state Sparse prompts or explicit callbacks to a recently resolved timeline scene.
 
 ### Step 3: Assemble Prompt
 
