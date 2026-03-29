@@ -21,6 +21,7 @@ coverage/
 
 # Maintainer-only scripts (not the skill entrypoint)
 scripts/smoke.ts
+scripts/sync-local-openclaw.mjs
 scripts/release-clawhub.mjs
 
 # Tests, internal docs, publish metadata
