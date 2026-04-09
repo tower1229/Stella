@@ -1,0 +1,7 @@
+interface:
+  display_name: "OpenClaw Dev"
+  short_description: "开发或调试 OpenClaw 生态项目时自动参考的文档与检查清单"
+  default_prompt: "Use $openclaw-ecosystem-dev before editing an OpenClaw-related repo to identify the owning docs page, inspect the local artifact, and make the smallest compatible change."
+
+policy:
+  allow_implicit_invocation: true
