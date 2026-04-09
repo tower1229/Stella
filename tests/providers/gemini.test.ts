@@ -5,11 +5,13 @@ import * as path from "path";
 
 vi.mock("fs");
 vi.mock("@google/genai", () => ({
-  GoogleGenAI: vi.fn().mockImplementation(() => ({
-    models: {
-      generateContent: vi.fn(),
-    },
-  })),
+  GoogleGenAI: vi.fn().mockImplementation(function() {
+    return {
+      models: {
+        generateContent: vi.fn(),
+      },
+    };
+  }),
 }));
 
 const mockFs = vi.mocked(fs);
@@ -70,10 +72,11 @@ describe("generateWithGemini", () => {
       makeGeminiResponse([makeImagePart(fakeImageData)])
     );
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.readFileSync.mockReturnValue(Buffer.from("fake-image-data"));
@@ -109,10 +112,11 @@ describe("generateWithGemini", () => {
       makeGeminiResponse([makeImagePart(fakeImageData)])
     );
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.readFileSync.mockReturnValue(Buffer.from("ref-image-bytes"));
@@ -142,10 +146,11 @@ describe("generateWithGemini", () => {
       makeGeminiResponse([makeImagePart(fakeImageData)])
     );
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.writeFileSync.mockImplementation(() => {});
@@ -168,10 +173,11 @@ describe("generateWithGemini", () => {
       makeGeminiResponse([makeTextPart("No image generated")])
     );
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     const { generateWithGemini } = await getModule();
@@ -193,10 +199,11 @@ describe("generateWithGemini", () => {
       makeGeminiResponse([makeImagePart(fakeImageData)], "Enhanced prompt text")
     );
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.writeFileSync.mockImplementation(() => {});
@@ -225,10 +232,11 @@ describe("generateWithGemini", () => {
       .mockRejectedValueOnce(rateLimitedErr)
       .mockResolvedValue(makeGeminiResponse([makeImagePart(fakeImageData)]));
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.writeFileSync.mockImplementation(() => {});
@@ -252,10 +260,11 @@ describe("generateWithGemini", () => {
     const { GoogleGenAI } = await import("@google/genai");
     const mockGenerateContent = vi.fn().mockRejectedValue(permissionErr);
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     const { generateWithGemini } = await getModule();
@@ -283,10 +292,11 @@ describe("generateWithGemini", () => {
     const { GoogleGenAI } = await import("@google/genai");
     const mockGenerateContent = vi.fn().mockRejectedValue(safetyErr);
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     const { generateWithGemini } = await getModule();
@@ -315,10 +325,11 @@ describe("generateWithGemini", () => {
       .mockRejectedValueOnce(networkErr)
       .mockResolvedValue(makeGeminiResponse([makeImagePart(fakeImageData)]));
     vi.mocked(GoogleGenAI).mockImplementation(
-      () =>
-        ({
+      function() {
+        return {
           models: { generateContent: mockGenerateContent },
-        }) as any
+        } as any;
+      }
     );
 
     mockFs.writeFileSync.mockImplementation(() => {});
