@@ -30,13 +30,13 @@
     "release:clawhub": "node ./scripts/release-clawhub.mjs"
   },
   "dependencies": {
-    "@fal-ai/client": "^1.2.0",
-    "@google/genai": "^0.7.0"
+    "@fal-ai/client": "^1.9.5",
+    "@google/genai": "^1.49.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.5.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   }
 }
