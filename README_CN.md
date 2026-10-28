@@ -162,10 +162,24 @@ stella-timeline-plugin 可以赋予 OpenClaw 时间感知与连续记忆能力�
 - 若发送失败，文件会保留用于排障。
 - 若删除失败，Stella 仅记录 warning 并继续流程。
 
+### 保留持久副本
+
+添加可选参数 `--save-dir`，在正常发送的同时，为每张生成图片保留副本：
+
+```bash
+node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "telegram" --save-dir "./saved-images"
+```
+
+目录不存在时自动创建；相对路径以当前工作目录为基准。每张保存成功的副本都会输出 `[stella] Saved image copy: <绝对路径>`，供后续读取。副本使用独立名称且不覆盖已有文件；多张图片同名、保存目录与原临时目录相同也适用。发送及临时文件清理后副本仍然保留，发送失败时也保留副本。
+
+Gemini/laozhang 在发送前复制本地图片。fal 会下载每个生成 URL（下载超时为 60 秒），发送时仍使用原 URL。未指定 `--save-dir` 时保持原行为，也不会额外下载 fal 图片。
+
+目录不可写、复制/写入失败、HTTP 非成功响应或下载中断等会独立输出 `SAVE_FAILED` 警告；不阻止发送，也不会重新生图。仅保存成功后输出副本路径；保存失败的残留文件会尽可能删除。发送失败沿用原有错误处理。副本的保留与清理由使用者管理。
+
 ## 安全说明
 
 - Stella 会读取 `~/.openclaw/workspace/IDENTITY.md` 与 `~/.openclaw/workspace/avatars/` 下的本地参考资料。
-- 生成图片写入 `~/.openclaw/workspace/stella-selfie/`，仅在发送成功后删除。
+- 生成图片写入 `~/.openclaw/workspace/stella-selfie/`，仅在发送成功后删除。指定 `--save-dir` 保存的副本会保留在目标目录。
 - 发送链路只使用 `openclaw message send`。
 
 ## 直接脚本测试（不走 OpenClaw）

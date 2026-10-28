@@ -7,6 +7,7 @@
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
+import { randomUUID } from "crypto";
 
 import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
@@ -26,6 +27,64 @@ interface CliArgs {
   caption: string;
   resolution: Resolution;
   count: number;
+  saveDir?: string;
+}
+
+// Saving is best-effort and must never enter provider error handling or retries.
+async function saveGeneratedCopy(media: string, saveDir?: string): Promise<void> {
+  if (!saveDir) return;
+
+  let copyPath: string | undefined;
+  try {
+    const directory = path.resolve(saveDir);
+    fs.mkdirSync(directory, { recursive: true });
+
+    let data: Buffer;
+    let extension: string;
+    if (/^https?:\/\//i.test(media)) {
+      const response = await fetch(media, { signal: AbortSignal.timeout(60_000) });
+      if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
+      data = Buffer.from(await response.arrayBuffer());
+      const mimeType = response.headers.get("content-type")?.split(";")[0].trim();
+      const extensions: Record<string, string> = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "image/avif": ".avif",
+      };
+      extension = (mimeType && extensions[mimeType]) || path.extname(new URL(media).pathname);
+    } else {
+      data = fs.readFileSync(media);
+      extension = path.extname(media);
+    }
+    if (!/^\.(png|jpe?g|webp|gif|avif)$/i.test(extension)) extension = ".jpg";
+
+    // A distinct name plus exclusive creation protects existing files, including
+    // the provider's original when the save directory is its temporary directory.
+    const destination = path.join(directory, `stella-copy-${randomUUID()}${extension}`);
+    const fd = fs.openSync(destination, "wx");
+    copyPath = destination;
+    try {
+      fs.writeFileSync(fd, data);
+    } finally {
+      fs.closeSync(fd);
+    }
+    console.log(`[stella] Saved image copy: ${copyPath}`);
+  } catch (err) {
+    // Only remove a file that this invocation created, never an existing file.
+    if (copyPath) {
+      try {
+        fs.unlinkSync(copyPath);
+      } catch (cleanupErr) {
+        console.warn(`[stella] Failed to remove incomplete copy: ${copyPath} (${String(cleanupErr)})`);
+      }
+    }
+    const message = (err as Error)?.message || String(err);
+    console.warn(
+      `[stella] SAVE_FAILED: ${media} -> ${saveDir} (${message}). Generation succeeded; continuing delivery without regenerating.`
+    );
+  }
 }
 
 function getMissingProviderCredential(provider: Provider): string | null {
@@ -86,7 +145,8 @@ Usage: node dist/scripts/skill.js \\
   --channel "<channel provider>" \\
   [--caption "<caption>"] \\
   [--resolution <1K|2K|4K>] \\
-  [--count <number>]
+  [--count <number>] \\
+  [--save-dir "<copy directory>"]
 `);
     process.exit(1);
   }
@@ -105,6 +165,12 @@ Usage: node dist/scripts/skill.js \\
     process.exit(1);
   }
 
+  const saveDir = get("--save-dir");
+  if (args.includes("--save-dir") && (!saveDir?.trim() || saveDir.startsWith("--"))) {
+    console.error("[stella] --save-dir requires a directory path.");
+    process.exit(1);
+  }
+
   return {
     prompt,
     target,
@@ -112,6 +178,7 @@ Usage: node dist/scripts/skill.js \\
     caption: get("--caption") || "",
     resolution: resolutionRaw as Resolution,
     count,
+    saveDir,
   };
 }
 
@@ -208,6 +275,9 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       });
 
       for (const result of results) {
+        await saveGeneratedCopy(result.outputPath, args.saveDir);
+      }
+      for (const result of results) {
         await sendGeneratedMedia(result.outputPath);
         try {
           fs.unlinkSync(result.outputPath);
@@ -227,6 +297,9 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
         count: args.count,
       });
 
+      for (const result of results) {
+        await saveGeneratedCopy(result.outputPath, args.saveDir);
+      }
       for (const result of results) {
         await sendGeneratedMedia(result.outputPath);
         try {
@@ -253,6 +326,9 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
         count: args.count,
       });
 
+      for (const result of results) {
+        await saveGeneratedCopy(result.imageUrl, args.saveDir);
+      }
       for (const result of results) {
         await sendGeneratedMedia(result.imageUrl);
       }

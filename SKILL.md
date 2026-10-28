@@ -144,12 +144,16 @@ node {baseDir}/dist/scripts/skill.js \
   --count <NUMBER>
 ```
 
+To also keep persistent copies, append `--save-dir "<COPY_DIRECTORY>"` when a save directory is requested. The directory is created if needed; relative paths resolve from the script's working directory. Omit this option to keep the default behavior.
+
 ### Step 5: Confirm Result
 
 After the script completes, confirm to the user:
 
 - Image was generated successfully
 - Image was sent to the target channel
+- When `--save-dir` was used, report each absolute path printed as `[stella] Saved image copy: <absolute path>`.
+- A `SAVE_FAILED` warning means only that a copy could not be saved. Report that separately from generation and delivery; do not regenerate the image to retry saving.
 - If any error occurred, send a concise actionable failure message
 
 ## Environment Variables
@@ -174,13 +178,19 @@ Credential requirements are provider-specific:
 - `Provider=fal`: requires `FAL_KEY`
 - `Provider=laozhang`: requires `LAOZHANG_API_KEY`
 
-## Media File Handling (Gemini)
+## Media File Handling
 
-When `Provider=gemini`, Stella writes generated files to:
+When `Provider=gemini` or `Provider=laozhang`, Stella writes generated files to:
 
 - `~/.openclaw/workspace/stella-selfie/`
 
 After successful send, Stella deletes the local file immediately. If send fails, the file is kept for debugging.
+
+With `--save-dir "<COPY_DIRECTORY>"`, Stella saves a separate copy of each image before sending and prints its absolute path. Copies use unique names and exclusive creation so existing files are never overwritten, even when the save directory is the provider's temporary directory. Copies remain after delivery and temporary-file cleanup, including when sending fails.
+
+For `Provider=fal`, this option downloads each generated HTTP/HTTPS URL to a local copy, with a 60-second download timeout. Delivery still uses the original URL. Without this option, Stella does not download fal images.
+
+An unwritable directory, copy/write error, or failed/interrupted download produces an independent `SAVE_FAILED` warning. Stella continues delivery without calling the image provider again. Only successfully saved copies produce a saved-path line; failed partial copies are removed when possible. Check delivery errors separately.
 
 ## Skill Environment Options
 
@@ -217,6 +227,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 - Under `Provider=fal`, only public `http/https` avatar URLs are sent; local avatar files are not uploaded to fal directly.
 - Under `Provider=laozhang`, local avatar files from `Avatar` / `AvatarsDir` are base64-encoded and uploaded to laozhang.ai.
 - Generated files (Gemini and laozhang) are written to `~/.openclaw/workspace/stella-selfie/` and deleted after successful send.
+- Optional copies saved with `--save-dir` remain in the requested directory for later reading; manage their retention yourself.
 
 ## User Configuration
 

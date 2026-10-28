@@ -6,6 +6,15 @@
 node_modules/
 coverage/
 
+# Git ignores dist/, but the skill invokes its compiled runtime directly.
+!/dist/
+/dist/**
+!/dist/scripts/
+!/dist/scripts/*.js
+!/dist/scripts/providers/
+!/dist/scripts/providers/*.js
+/dist/scripts/smoke.js
+
 # Secrets & local overrides
 .env
 .env.*

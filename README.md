@@ -162,10 +162,24 @@ After each image is sent successfully, Stella immediately deletes the local file
 - If sending fails, the file is retained for troubleshooting.
 - If deletion fails, Stella only logs a warning and continues.
 
+### Keep Persistent Copies
+
+Append the optional `--save-dir` argument to keep a copy of every generated image while preserving normal delivery:
+
+```bash
+node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "telegram" --save-dir "./saved-images"
+```
+
+Stella creates the directory if needed. Relative paths resolve from the current working directory. Each successful save prints `[stella] Saved image copy: <absolute path>` for later reading. Copies have unique names and never overwrite existing files, even when multiple images share a name or the save directory equals the temporary directory. They remain after delivery and temporary-file cleanup, including when delivery fails.
+
+Gemini/laozhang files are copied before sending. For fal, Stella downloads each generated URL (60-second timeout) and still sends the original URL. Omitting `--save-dir` preserves the default behavior, including no fal download.
+
+Saving errors (directory permissions, copy/write failures, non-success HTTP responses, or interrupted downloads) produce an independent `SAVE_FAILED` warning and do not stop delivery or trigger image regeneration. A saved-path line is printed only after a successful save; incomplete files are removed when possible. Delivery failures retain their existing error handling. Manage copy retention yourself.
+
 ## Security Notes
 
 - Stella reads local reference files from `~/.openclaw/workspace/IDENTITY.md` and `~/.openclaw/workspace/avatars/`.
-- Generated images are written to `~/.openclaw/workspace/stella-selfie/` and deleted only after successful delivery.
+- Generated images are written to `~/.openclaw/workspace/stella-selfie/` and deleted only after successful delivery. Optional `--save-dir` copies remain in the requested directory.
 - The send path uses only `openclaw message send`.
 
 ## Direct Script Testing (without OpenClaw)
