@@ -251,4 +251,12 @@ describe("generateWithFal", () => {
     });
     expect(mockSubscribe).toHaveBeenCalledTimes(1);
   });
+  it.each(["/private/secret", "file:///private/secret", "http://127.0.0.1/image.png", "https://user:pass@example.com/image.png", "http://[::ffff:127.0.0.1]/image.png"])("rejects unsafe output without repeating generation: %s", async (url) => {
+    mockSubscribe.mockResolvedValue(makeFalResponse([url]));
+    const { generateWithFal } = await getModule();
+    await expect(generateWithFal({ prompt: "test", referenceImageUrls: [], resolution: "1K", count: 1 }))
+      .rejects.toThrow();
+    expect(mockSubscribe).toHaveBeenCalledTimes(1);
+  });
+
 });

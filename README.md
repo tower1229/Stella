@@ -73,6 +73,8 @@ Add the following fields to `~/.openclaw/workspace/IDENTITY.md`:
 - `AvatarsDir`: Additional reference image directory (same character, different styles/scenes/outfits); required and used when `AvatarBlendEnabled=true` and `Provider=gemini | laozhang`
 - `AvatarsURLs`: Public URLs for reference images, separated by English commas; required when `Provider=fal`
 
+Local reference uploads accept regular JPEG/PNG/WebP files up to 20 MiB and verify their image signature. By default, images must resolve inside the workspace's `avatars/` or `assets/`. To authorize a custom image directory, set `AvatarAllowedRoots` in the skill's environment to a JSON array of absolute directories; this replaces the defaults. Paths and symlinks outside those roots are rejected before upload.
+
 ### 3. Reference Images (`avatars/` directory)
 
 Put reference photos under the path configured by `AvatarsDir`:
@@ -200,6 +202,8 @@ node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "te
 npm run smoke
 ```
 
+Smoke reference folders outside the workspace defaults also need explicit authorization. Add `AvatarAllowedRoots='["/absolute/path/to/Stella/smoke/avatars"]'` to `.env.local` before running the paid smoke script.
+
 > **Note**: `.env.local` in the project root is only for local development/script testing. When running as an OpenClaw skill, it is recommended to provide keys via `~/.openclaw/openclaw.json` (or process environment variables), and OpenClaw injects them during each agent run.
 
 ## Unit Tests
@@ -237,3 +241,9 @@ Stella/
 └── references/
     └── timeline-integration.md   # Optional timeline enrichment rules
 ```
+
+### Release preparation
+
+Node.js 20 or newer is required by the current Gemini SDK.
+
+Run `npm run release:clawhub -- --prepare-only` to test, build and stage the runtime bundle locally. The output contains `bundle/` and a SHA-256 `manifest.json`; no upload or scan is requested. The bundle includes the compiled runtime, runtime dependency metadata, timeline reference and SOUL template. Source files, tests, developer dependencies, local config and images are excluded. Complete normal ClawHub checks and verify exact-version public download hashes before calling a release successful.

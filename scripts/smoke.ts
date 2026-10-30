@@ -5,6 +5,7 @@ import { selectAvatars } from "./avatars";
 import { generateWithGemini } from "./providers/gemini";
 import { generateWithFal } from "./providers/fal";
 import { generateWithLaozhang } from "./providers/laozhang";
+import { downloadImage } from "./media-download";
 
 type Resolution = "1K" | "2K" | "4K";
 type SmokeProvider = "gemini" | "fal" | "laozhang";
@@ -101,12 +102,8 @@ const SMOKE_CASES: Array<{
 ];
 
 async function downloadUrlToFile(url: string, destPath: string): Promise<void> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Download failed: ${res.status} ${res.statusText}`);
-  }
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(destPath, buf);
+  const { data } = await downloadImage(url);
+  fs.writeFileSync(destPath, data);
 }
 
 async function runGeminiSmoke(outdir: string): Promise<void> {

@@ -1,6 +1,6 @@
 # ClawHub: exclude everything that is not needed to run
 #   node {baseDir}/dist/scripts/skill.js
-# Shipped: SKILL.md, package.json, dist/**, templates/**
+# Shipped: SKILL.md, package.json, runtime JS, references/**, templates/**
 
 # Dependencies & artifacts
 node_modules/
@@ -29,9 +29,9 @@ coverage/
 **/.DS_Store
 
 # Maintainer-only scripts (not the skill entrypoint)
-scripts/smoke.ts
-scripts/sync-local-openclaw.mjs
-scripts/release-clawhub.mjs
+/scripts/
+.codex/
+.agents/
 
 # Tests, internal docs, publish metadata
 tests/

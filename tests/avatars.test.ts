@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "fs";
 
 vi.mock("fs");
+// Selection ordering is tested here; real file validation is covered in avatar-security.test.ts.
+vi.mock("../scripts/images", () => ({ readReferenceImage: vi.fn() }));
 
 // Use `any` to avoid Dirent generic type mismatch between Node versions
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

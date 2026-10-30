@@ -16,6 +16,8 @@ import { generateWithFal } from "./providers/fal";
 import { generateWithLaozhang } from "./providers/laozhang";
 import { sendImage, sendMessage } from "./sender";
 import { asStellaError, formatFailureMessage } from "./errors";
+import { readImageFile } from "./images";
+import { downloadImage, validateImageUrl } from "./media-download";
 
 type Provider = "gemini" | "fal" | "laozhang";
 type Resolution = "1K" | "2K" | "4K";
@@ -31,7 +33,7 @@ interface CliArgs {
 }
 
 // Saving is best-effort and must never enter provider error handling or retries.
-async function saveGeneratedCopy(media: string, saveDir?: string): Promise<void> {
+async function saveGeneratedCopy(media: string, kind: "local" | "remote", saveDir?: string): Promise<void> {
   if (!saveDir) return;
 
   let copyPath: string | undefined;
@@ -39,26 +41,7 @@ async function saveGeneratedCopy(media: string, saveDir?: string): Promise<void>
     const directory = path.resolve(saveDir);
     fs.mkdirSync(directory, { recursive: true });
 
-    let data: Buffer;
-    let extension: string;
-    if (/^https?:\/\//i.test(media)) {
-      const response = await fetch(media, { signal: AbortSignal.timeout(60_000) });
-      if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
-      data = Buffer.from(await response.arrayBuffer());
-      const mimeType = response.headers.get("content-type")?.split(";")[0].trim();
-      const extensions: Record<string, string> = {
-        "image/jpeg": ".jpg",
-        "image/png": ".png",
-        "image/webp": ".webp",
-        "image/gif": ".gif",
-        "image/avif": ".avif",
-      };
-      extension = (mimeType && extensions[mimeType]) || path.extname(new URL(media).pathname);
-    } else {
-      data = fs.readFileSync(media);
-      extension = path.extname(media);
-    }
-    if (!/^\.(png|jpe?g|webp|gif|avif)$/i.test(extension)) extension = ".jpg";
+    const { data, extension } = kind === "remote" ? await downloadImage(media) : readImageFile(media);
 
     // A distinct name plus exclusive creation protects existing files, including
     // the provider's original when the save directory is its temporary directory.
@@ -120,7 +103,7 @@ function getReferenceConfigGuideMessage(provider: Provider): string {
 
   return [
     "我暂时不能生成图片：参考图目录读取失败。",
-    "请检查 ~/.openclaw/workspace/IDENTITY.md 中的 AvatarsDir 是否存在且可读取，并放入同一角色的参考图。",
+    "请检查 ~/.openclaw/workspace/IDENTITY.md 中的参考图配置：仅接受授权目录内的 JPEG/PNG/WebP 普通文件，单张不超过 20 MiB。自定义目录需显式配置 AvatarAllowedRoots。",
     "示例：AvatarsDir: ./avatars",
   ].join("\n");
 }
@@ -275,7 +258,7 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       });
 
       for (const result of results) {
-        await saveGeneratedCopy(result.outputPath, args.saveDir);
+        await saveGeneratedCopy(result.outputPath, "local", args.saveDir);
       }
       for (const result of results) {
         await sendGeneratedMedia(result.outputPath);
@@ -298,7 +281,7 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
       });
 
       for (const result of results) {
-        await saveGeneratedCopy(result.outputPath, args.saveDir);
+        await saveGeneratedCopy(result.outputPath, "local", args.saveDir);
       }
       for (const result of results) {
         await sendGeneratedMedia(result.outputPath);
@@ -326,8 +309,10 @@ export async function runSkill(argv: string[] = process.argv): Promise<void> {
         count: args.count,
       });
 
+      // Validate the whole batch before any delivery or local-file read.
+      for (const result of results) validateImageUrl(result.imageUrl);
       for (const result of results) {
-        await saveGeneratedCopy(result.imageUrl, args.saveDir);
+        await saveGeneratedCopy(result.imageUrl, "remote", args.saveDir);
       }
       for (const result of results) {
         await sendGeneratedMedia(result.imageUrl);

@@ -4,6 +4,9 @@ import * as os from "os";
 import * as path from "path";
 
 vi.mock("fs");
+vi.mock("../../scripts/images", () => ({
+  readReferenceImage: () => ({ data: Buffer.from("validated-ref"), mimeType: "image/jpeg" }),
+}));
 vi.mock("@google/genai", () => ({
   GoogleGenAI: vi.fn().mockImplementation(function() {
     return {

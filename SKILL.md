@@ -112,7 +112,7 @@ Determine from the user's message:
 - Only enable Nano Banana real-world grounding when the prompt can explicitly include a concrete `city` plus an exact local date/time anchor from timeline data. If those anchors are missing, do not claim real-world synchronization.
 - If timeline returns `fact.status === "empty"`, is missing `result.consumption`, or any error occurs, immediately fall back to Step 3 without mentioning timeline failure to the user.
 
-**Never block image generation on timeline availability.** Timeline enrichment is best-effort and should only be used for current-state Sparse prompts or explicit callbacks to a recently resolved timeline scene.
+**If timeline context is unavailable, use the normal scene defaults and keep the existing configuration and safety checks.** Timeline enrichment is best-effort and should only be used for current-state Sparse prompts or explicit callbacks to a recently resolved timeline scene.
 
 ### Step 3: Assemble Prompt
 
@@ -171,6 +171,7 @@ Actual credential validation remains runtime-driven inside `skill.js`, based on 
 | `Provider`           | Optional                        | Image provider: `gemini`, `fal`, or `laozhang`                                       |
 | `AvatarBlendEnabled` | Optional                        | Enable or disable multi-reference avatar blending                                    |
 | `AvatarMaxRefs`      | Optional                        | Maximum number of reference images to blend                                          |
+| `AvatarAllowedRoots` | Optional                        | JSON array of absolute directories authorized for local reference images             |
 
 Credential requirements are provider-specific:
 
@@ -204,7 +205,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 > **Note for `Provider=fal` users**: fal's image editing API only accepts HTTP/HTTPS image URLs. Local file paths (from `Avatar` / `AvatarsDir`) are not supported. Configure `AvatarsURLs` in `IDENTITY.md` with public URLs of your reference images to enable image editing with fal.
 
-> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3-pro-image-preview`). It requires local reference images from `Avatar` / `AvatarsDir` and does not use `AvatarsURLs`. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
+> **Note for `Provider=laozhang` users**: laozhang.ai uses the Google-native Gemini API format (`gemini-3.1-flash-image-preview`). It requires local reference images from `Avatar` / `AvatarsDir` and does not use `AvatarsURLs`. Supports 1K/2K/4K resolution and 10 aspect ratios. Get your API key at [api.laozhang.ai](https://api.laozhang.ai) — remember to configure a billing mode in the token settings before use.
 
 ## Delivery Path
 
@@ -231,7 +232,7 @@ Configure in your OpenClaw `openclaw.json` under `skills.entries.stella-selfie.e
 
 ## User Configuration
 
-Before using this skill, you must configure your OpenClaw workspace. See `templates/SOUL.fragment.md` for the recommended capability snippet to add to your `SOUL.md`.
+Before using this skill, you must configure your OpenClaw workspace. See `{baseDir}/templates/SOUL.fragment.md` for the recommended capability snippet to add to your `SOUL.md`.
 
 ### Required: IDENTITY.md
 
@@ -247,6 +248,16 @@ AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
 - `AvatarsDir`: Directory containing multiple reference photos of the same character (different styles, scenes, outfits)
 - `AvatarsURLs`: Comma-separated public URLs of reference images — required for `Provider=fal` (local files are not supported by fal's API)
 
+Local references must be regular JPEG, PNG or WebP files, at most 20 MiB each, with a recognized image signature. Both the primary avatar and blended references are validated again before upload; filename extensions alone are insufficient. The default allowed roots are the workspace's `avatars/` and `assets/` directories. Paths or symlinks escaping those roots are rejected.
+
+For a custom directory, explicitly set `AvatarAllowedRoots` in `skills.entries.stella-selfie.env` to a JSON array of absolute directory paths. This replaces the default roots. Choose image directories you intend to upload to the selected provider; changing `IDENTITY.md` alone does not authorize another directory.
+
+```json
+{ "AvatarAllowedRoots": "[\"/absolute/path/to/approved-avatars\"]" }
+```
+
+Saved image copies are limited to 20 MiB and checked for a recognized image signature. Remote copies require public HTTP(S) addresses, validate DNS on the socket connection, and reject redirects. A failed copy still reports `SAVE_FAILED` and continues delivery without regenerating an image.
+
 ### Required: avatars/ Directory
 
 Place your reference photos in `~/.openclaw/workspace/avatars/`:
@@ -256,9 +267,9 @@ Place your reference photos in `~/.openclaw/workspace/avatars/`:
 - Different styles, scenes, outfits, and expressions work best
 - Images are selected by creation time (newest first)
 
-### Required: SOUL.md
+### Optional: SOUL.md
 
-Add the Stella capability block to `~/.openclaw/workspace/SOUL.md`. See README.md ("4. SOUL.md") for the copy/paste snippet.
+Optionally add the capability block from `{baseDir}/templates/SOUL.fragment.md` to your workspace's `SOUL.md` after reviewing it. The template ships with the installed skill.
 
 ## Installation
 
@@ -267,3 +278,10 @@ clawhub install stella-selfie
 ```
 
 After installation, complete the configuration steps above before using the skill.
+
+Use Node.js 20 or newer (required by the Gemini SDK), then install the runtime SDK dependencies from the skill directory:
+
+```bash
+cd {baseDir}
+npm install --omit=dev
+```

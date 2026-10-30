@@ -11,8 +11,8 @@ If `timeline_resolve` is unavailable, fails, times out, returns `fact.status ===
 
 - `timeline_resolve` is optional. Stella must work normally without it.
 - Timeline enhancement is best-effort only.
-- Never refuse, delay, or noticeably degrade image generation because timeline context is missing.
-- Never introduce a hard dependency on timeline-specific env vars, install steps, or internal field paths.
+- When timeline context is missing, continue with the skill's normal scene defaults and existing generation, configuration and safety rules.
+- Keep timeline enhancement optional; it requires no additional environment variables or installation steps.
 
 ## Eligibility
 

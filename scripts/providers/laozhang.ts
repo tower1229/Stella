@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { asStellaError } from "../errors";
+import { readReferenceImage } from "../images";
 
 const BASE_URL = "https://api.laozhang.ai/v1beta/models";
 const MODEL = "gemini-3.1-flash-image-preview";
@@ -53,16 +54,8 @@ function getApiKey(provided?: string): string {
 function readImageAsBase64(
   filePath: string
 ): { data: string; mimeType: string } {
-  const ext = path.extname(filePath).toLowerCase();
-  const mimeMap: Record<string, string> = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-  };
-  const mimeType = mimeMap[ext] || "image/jpeg";
-  const data = fs.readFileSync(filePath).toString("base64");
-  return { data, mimeType };
+  const image = readReferenceImage(filePath);
+  return { data: image.data.toString("base64"), mimeType: image.mimeType };
 }
 
 function buildParts(

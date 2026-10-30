@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   fal: vi.fn(),
   sendImage: vi.fn(),
   sendMessage: vi.fn(),
+  download: vi.fn(),
 }));
 
 vi.mock("../scripts/identity", () => ({ parseIdentity: mocks.parseIdentity }));
@@ -27,6 +28,11 @@ vi.mock("fs", async (importOriginal) => ({
   ...await importOriginal<typeof fs>(),
 }));
 
+vi.mock("../scripts/media-download", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../scripts/media-download")>(),
+  downloadImage: mocks.download,
+}));
+
 import { runSkill } from "../scripts/skill";
 
 const argv = [
@@ -34,7 +40,7 @@ const argv = [
   "--channel", "telegram", "--caption", "test caption", "--resolution", "2K",
   "--count", "2",
 ];
-const imageBytes = Buffer.from("test image bytes");
+const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 const imageUrl = "https://cdn.example.com/output.jpg?signature=test";
 
 describe("runSkill persistent image copies", () => {
@@ -42,7 +48,7 @@ describe("runSkill persistent image copies", () => {
   let source: string;
   let log: MockInstance<typeof console.log>;
   let warn: MockInstance<typeof console.warn>;
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let downloadMock: ReturnType<typeof vi.fn>;
 
   function localResult(outputPath = source) {
     return { outputPath, imageData: imageBytes, mimeType: "image/png" };
@@ -83,8 +89,8 @@ describe("runSkill persistent image copies", () => {
     mocks.sendImage.mockResolvedValue(undefined);
     log = vi.spyOn(console, "log").mockImplementation(() => {});
     warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    downloadMock = mocks.download;
+    downloadMock.mockResolvedValue({ data: imageBytes, extension: ".png" });
   });
 
   afterEach(() => {
@@ -108,7 +114,7 @@ describe("runSkill persistent image copies", () => {
     expect(fs.existsSync(source)).toBe(provider === "fal");
     expect(mkdir).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(downloadMock).not.toHaveBeenCalled();
     expect(savedPaths()).toEqual([]);
   });
 
@@ -147,7 +153,7 @@ describe("runSkill persistent image copies", () => {
     const secondDir = path.join(root, "second");
     fs.mkdirSync(secondDir);
     const second = path.join(secondDir, "original.png");
-    fs.writeFileSync(second, "second image");
+    fs.writeFileSync(second, Buffer.concat([imageBytes, Buffer.from("second")]));
     const directory = path.join(root, "copies");
     fs.mkdirSync(directory);
     const existing = path.join(directory, "original.png");
@@ -159,7 +165,7 @@ describe("runSkill persistent image copies", () => {
     expect(savedPaths()).toHaveLength(2);
     expect(new Set(savedPaths()).size).toBe(2);
     expect(savedPaths().map((file) => fs.readFileSync(file, "utf8")))
-      .toEqual([imageBytes.toString(), "second image"]);
+      .toEqual([imageBytes.toString(), Buffer.concat([imageBytes, Buffer.from("second")]).toString()]);
     expect(fs.readFileSync(existing, "utf8")).toBe("keep existing");
     expect(fs.existsSync(source)).toBe(false);
     expect(fs.existsSync(second)).toBe(false);
@@ -178,9 +184,7 @@ describe("runSkill persistent image copies", () => {
     vi.stubEnv("Provider", "fal");
     const secondUrl = "https://other.example.com/output.jpg";
     mocks.fal.mockResolvedValue([{ imageUrl }, { imageUrl: secondUrl }]);
-    fetchMock.mockImplementation(async () => new Response(imageBytes, {
-      headers: { "content-type": "image/jpeg" },
-    }));
+
 
     await runSkill([...argv, "--save-dir", root]);
 
@@ -189,10 +193,10 @@ describe("runSkill persistent image copies", () => {
     for (const copy of savedPaths()) {
       expect(path.isAbsolute(copy)).toBe(true);
       expect(fs.readFileSync(copy)).toEqual(imageBytes);
-      expect(path.extname(copy)).toBe(".jpg");
+      expect(path.extname(copy)).toBe(".png");
     }
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenCalledWith(imageUrl, { signal: expect.any(AbortSignal) });
+    expect(downloadMock).toHaveBeenCalledTimes(2);
+    expect(downloadMock).toHaveBeenCalledWith(imageUrl);
     expect(mocks.sendImage.mock.calls.map(([options]) => options.media)).toEqual([imageUrl, secondUrl]);
     expect(mocks.fal).toHaveBeenCalledExactlyOnceWith({
       prompt: "test prompt", referenceImageUrls: ["https://cdn.example.com/ref.jpg"],
@@ -203,8 +207,7 @@ describe("runSkill persistent image copies", () => {
   it("reports an HTTP download failure independently and still saves later fal images", async () => {
     vi.stubEnv("Provider", "fal");
     mocks.fal.mockResolvedValue([{ imageUrl }, { imageUrl: "https://cdn.example.com/next.jpg" }]);
-    fetchMock.mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
-      .mockResolvedValueOnce(new Response(imageBytes));
+    downloadMock.mockRejectedValueOnce(new Error("Download failed: HTTP 503"));
 
     await runSkill([...argv, "--save-dir", path.join(root, "copies")]);
 
@@ -219,13 +222,7 @@ describe("runSkill persistent image copies", () => {
 
   it.each(["network", "body", "timeout"])("continues fal delivery after %s download interruption", async (failure) => {
     vi.stubEnv("Provider", "fal");
-    if (failure === "body") {
-      const response = new Response(imageBytes);
-      vi.spyOn(response, "arrayBuffer").mockRejectedValue(new Error("connection reset"));
-      fetchMock.mockResolvedValue(response);
-    } else {
-      fetchMock.mockRejectedValue(new Error(failure === "timeout" ? "download timed out" : "fetch failed"));
-    }
+    downloadMock.mockRejectedValue(new Error(failure === "timeout" ? "download timed out" : "connection reset"));
     const directory = path.join(root, "copies");
 
     await runSkill([...argv, "--save-dir", directory]);
@@ -242,7 +239,7 @@ describe("runSkill persistent image copies", () => {
     expectSaveFailure();
     expect(mocks[provider as "gemini" | "laozhang" | "fal"]).toHaveBeenCalledTimes(1);
     expect(mocks.sendImage).toHaveBeenCalledTimes(1);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(downloadMock).not.toHaveBeenCalled();
   });
 
   it("reports a permission error and still sends without repeating generation", async () => {
@@ -284,8 +281,10 @@ describe("runSkill persistent image copies", () => {
   it("does not delete an existing file when exclusive creation fails", async () => {
     const existing = path.join(root, "keep.png");
     fs.writeFileSync(existing, "keep existing");
-    const open = vi.spyOn(fs, "openSync").mockImplementation(() => {
-      throw Object.assign(new Error("file exists"), { code: "EEXIST" });
+    const originalOpen = fs.openSync;
+    const open = vi.spyOn(fs, "openSync").mockImplementation((file, flags, mode) => {
+      if (flags === "wx") throw Object.assign(new Error("file exists"), { code: "EEXIST" });
+      return originalOpen(file, flags, mode);
     });
     await runSkill([...argv, "--save-dir", root]);
     expectSaveFailure();
@@ -311,11 +310,11 @@ describe("runSkill persistent image copies", () => {
   it.each(["gemini", "laozhang", "fal"])("saves all %s copies even when the first send fails", async (provider) => {
     vi.stubEnv("Provider", provider);
     const second = path.join(root, "second.png");
-    fs.writeFileSync(second, "second image");
+    fs.writeFileSync(second, Buffer.concat([imageBytes, Buffer.from("second")]));
     mocks.gemini.mockResolvedValue([localResult(), localResult(second)]);
     mocks.laozhang.mockResolvedValue([localResult(), localResult(second)]);
     mocks.fal.mockResolvedValue([{ imageUrl }, { imageUrl: "https://cdn.example.com/next.jpg" }]);
-    fetchMock.mockImplementation(async () => new Response(imageBytes));
+
     mocks.sendImage.mockRejectedValue(new Error("gateway unavailable"));
 
     await expect(runSkill([...argv, "--save-dir", path.join(root, "copies")]))
@@ -337,4 +336,13 @@ describe("runSkill persistent image copies", () => {
     expect(mocks.gemini).not.toHaveBeenCalled();
     expect(mocks.sendImage).not.toHaveBeenCalled();
   });
+  it.each([false, true])("rejects a local fal result before copying or delivery (save=%s)", async (save) => {
+    vi.stubEnv("Provider", "fal");
+    mocks.fal.mockResolvedValue([{ imageUrl: source }]);
+    await expect(runSkill(save ? [...argv, "--save-dir", root] : argv)).rejects.toThrow();
+    expect(mocks.sendImage).not.toHaveBeenCalled();
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(fs.readFileSync(source)).toEqual(imageBytes);
+  });
+
 });

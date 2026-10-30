@@ -1,4 +1,5 @@
 import { asStellaError, shouldRetryFal } from "../errors";
+import { validateImageUrl } from "../media-download";
 
 export type Resolution = "1K" | "2K" | "4K";
 
@@ -113,8 +114,13 @@ export async function generateWithFal(
     );
   }
 
-  return data.images.map((img) => ({
-    imageUrl: img.url,
-    revisedPrompt: data.revised_prompt,
-  }));
+  try {
+    return data.images.map((img) => {
+      validateImageUrl(img.url);
+      return { imageUrl: img.url, revisedPrompt: data.revised_prompt };
+    });
+  } catch (err) {
+    // Output validation is outside the paid generation retry loop.
+    throw asStellaError("fal", err);
+  }
 }

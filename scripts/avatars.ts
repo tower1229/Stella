@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { readReferenceImage } from "./images";
 
 const SUPPORTED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
@@ -67,10 +68,15 @@ export function selectAvatars(options: {
   // Add primary Avatar first
   if (avatar) {
     if (fs.existsSync(avatar)) {
-      const real = safeRealpath(avatar);
-      if (real) {
-        seenRealpaths.add(real);
-        result.push(toPosixPath(avatar));
+      try {
+        readReferenceImage(avatar);
+        const real = safeRealpath(avatar);
+        if (real) {
+          seenRealpaths.add(real);
+          result.push(toPosixPath(avatar));
+        }
+      } catch (err) {
+        console.warn(`[stella] Warning: Invalid Avatar: ${(err as Error).message}`);
       }
     } else {
       console.warn(`[stella] Warning: Avatar not found: ${avatar}`);
@@ -118,6 +124,13 @@ export function selectAvatars(options: {
 
         const real = safeRealpath(candidate.filePath);
         if (!real || seenRealpaths.has(real)) continue;
+
+        try {
+          readReferenceImage(candidate.filePath);
+        } catch (err) {
+          console.warn(`[stella] Warning: Invalid reference image: ${(err as Error).message}`);
+          continue;
+        }
 
         seenRealpaths.add(real);
         result.push(toPosixPath(candidate.filePath));

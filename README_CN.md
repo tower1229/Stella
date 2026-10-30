@@ -73,6 +73,8 @@ clawhub install stella-selfie
 - `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`AvatarBlendEnabled=true` 且 `Provider=gemini | laozhang` 必须配置并读取此目录
 - `AvatarsURLs`：参考图的公开 URL，半角逗号分隔；`Provider=fal` 时必须配置
 
+本地参考图必须是普通 JPEG/PNG/WebP 文件，单张不超过 20 MiB，并检查图片头。默认仅允许工作区内的 `avatars/`、`assets/`。自定义目录需在 skill 的环境配置中显式设置 `AvatarAllowedRoots`（绝对目录组成的 JSON 数组，会替换默认目录）。超出授权目录的路径及符号链接在上传前被拒绝。
+
 ### 3. 参考图片（`avatars/` 目录）
 
 将参考照片放到 `AvatarsDir` 所配置的路径下：
@@ -200,6 +202,8 @@ node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "te
 npm run smoke
 ```
 
+本地 smoke 的参考图目录也需授权。在 `.env.local` 中加入 `AvatarAllowedRoots='["/absolute/path/to/Stella/smoke/avatars"]'`，再运行会调用真实 API 的 smoke 脚本。
+
 > **注意**：项目根目录的 `.env.local` 仅用于本地开发/脚本测试。作为 OpenClaw skill 运行时，建议通过 `~/.openclaw/openclaw.json`（或进程环境变量）提供密钥，OpenClaw 会在每次 agent run 期间注入。
 
 ## 单元测试
@@ -237,3 +241,9 @@ Stella/
 └── references/
     └── timeline-integration.md   # 可选 timeline 增强规则
 ```
+
+### 发布前检查
+
+当前 Gemini SDK 要求 Node.js 20 或更新版本。
+
+执行 `npm run release:clawhub -- --prepare-only`，在本地完成测试、构建和打包，输出 `bundle/` 及 SHA-256 `manifest.json`，不会上传或请求扫描。发布包仅含编译后运行文件、运行依赖声明、timeline 参考说明和 SOUL 模板，排除源码、测试、开发依赖、本地配置和图片。只有平台正常审核完成、精确版本公开可下载且哈希一致，才能认定发布成功。

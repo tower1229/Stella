@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareSkillBundle } from "./skill-bundle.mjs";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -16,11 +17,13 @@ function quoteWin(arg) {
 function usage(exitCode = 0) {
   const msg = `
 Usage:
-  node ./scripts/release-clawhub.mjs [--changelog "..."] [--tag latest] [--skip-test]
+  node ./scripts/release-clawhub.mjs [--changelog "..."] [--tag latest] [--skip-test] [--prepare-only]
 
 Behavior:
   - Reads version from package.json
   - Runs unit tests (npm test) unless --skip-test
+  - Builds and stages an explicit runtime-only bundle with a SHA-256 manifest
+  - --prepare-only stops after staging, without contacting ClawHub
   - If --changelog is not provided, generates one from git history
   - Publishes this repo as a ClawHub skill using:
       slug: stella-selfie
@@ -35,7 +38,7 @@ Requirements:
 }
 
 function parseArgs(argv) {
-  const out = { changelog: "", tag: "latest", skipTest: false };
+  const out = { changelog: "", tag: "latest", skipTest: false, prepareOnly: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--changelog") {
@@ -44,6 +47,8 @@ function parseArgs(argv) {
       out.tag = argv[++i] ?? "latest";
     } else if (a === "--skip-test") {
       out.skipTest = true;
+    } else if (a === "--prepare-only") {
+      out.prepareOnly = true;
     } else if (a === "-h" || a === "--help") {
       usage(0);
     } else {
@@ -71,7 +76,7 @@ function run(cmd, args, opts = {}) {
         ...opts,
       });
   if (r.error) throw r.error;
-  if (typeof r.status === "number" && r.status !== 0) process.exit(r.status);
+  if (r.status !== 0) process.exit(r.status || 1);
 }
 
 function canRun(cmd) {
@@ -130,7 +135,7 @@ function generateChangelog(version) {
   return `Release v${version}`;
 }
 
-const { changelog: changelogArg, tag, skipTest } = parseArgs(process.argv.slice(2));
+const { changelog: changelogArg, tag, skipTest, prepareOnly } = parseArgs(process.argv.slice(2));
 
 const pkgPath = path.join(ROOT_DIR, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
@@ -165,15 +170,25 @@ if (!fs.existsSync(distEntrypoint)) {
 }
 
 // eslint-disable-next-line no-console
+const bundle = prepareSkillBundle(ROOT_DIR, path.join(ROOT_DIR, "out", "clawhub-candidates"));
+console.log(`[release] Bundle: ${bundle.bundlePath}`);
+console.log(`[release] Manifest: ${bundle.manifestPath}`);
+console.log(`[release] Fingerprint: ${bundle.fingerprint}`);
+if (prepareOnly) {
+  console.log("[release] Prepared locally. No upload or security scan was requested.");
+  process.exit(0);
+}
+
 console.log("[release] Publishing to ClawHub...");
 
 // Pin workdir to this repo root. clawhub resolves workdir to OpenClaw/Clawdbot default workspace when cwd
-// has no .clawhub marker; then `publish .` runs against the wrong folder and fails with "SKILL.md required".
+// has no .clawhub marker. Pass the staged absolute path to the documented skill publish command.
 const publishArgs = [
   "--workdir",
   ROOT_DIR,
+  "skill",
   "publish",
-  ".",
+  bundle.bundlePath,
   "--slug",
   "stella-selfie",
   "--name",
@@ -183,7 +198,7 @@ const publishArgs = [
   "--tags",
   String(tag),
   "--changelog",
-  String(changelog).replace(/\r?\n/g, "\\n"),
+  String(changelog),
 ];
 
 if (canRun("clawhub")) {
@@ -209,5 +224,5 @@ if (canRun("clawhub")) {
 }
 
 // eslint-disable-next-line no-console
-console.log("[release] Done.");
+console.log("[release] Upload command completed. Verify normal checks, exact-version public availability and downloaded hashes before declaring publication complete.");
 
