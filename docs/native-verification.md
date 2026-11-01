@@ -128,3 +128,16 @@
 - 收尾只读探针确认登录仍有效，匿名确切版本查询也返回 HTTP500；当前服务状态无法完成公开可用性核对。本地 release-status.json 记录了未发布状态，主安装的13个文件仍全部匹配最终清单。
 - 已验收的最终暂存包、13 文件哈希清单、accepted.json 和私有 upload-progress.json 保留在 out/acceptance-2.0.0/，用于继续同一份发布；上传进度可能含短期上传凭证，不提交 Git 或附到公开问题中。一次性生图、DNS和诊断脚本在收尾删除。
 - 服务恢复后可运行该目录的 resumable-publish.mjs 继续，再用 verify-public.mjs 的 inspect/security/download 做正常公开校验。公开下载的13个文件须逐项匹配本地清单；最后可用原生 OpenClaw 安装确切公开版本以更新来源记录。恢复发布不需要再次生图。
+
+## 冗余清理与局部重构（2026-11-01）
+
+- 删除未接入当前入口、仍含退役 provider 配置的 .env.example，以及 smoke/avatars 两张 PNG 和 assets 三张 JPG。全仓引用核对确认这五张静态图片不参与运行、测试、文档或发布，合计 5,966,177 字节；历史生成图片不在删除范围内。
+- release-clawhub.mjs 共用进程调用封装与 git 提交标题解析，保留 Windows/POSIX 执行方式、输出及失败处理，移除无对应 ESLint 配置的抑制注释。
+- 共享参数准备接口仅要求 Agent 解析与 provider 查询，聊天无需提供永远不会调用的 generate 占位；StellaHost 和 generateForBili 的公开调用方式不变。
+- 参考图与聊天快照复用同一个路径包含判断，快照扩展名统一使用现有内容签名识别器。保留 JPEG/PNG/WebP、20 MiB、二次读取、链接边界、首次并发建目录及部分写入清理检查。
+- 构建通过，回归 98 通过、1 个原有平台用例跳过；新增 JPEG/WebP 按内容命名与释放的两个用例。沙箱首轮因无法创建 junction 导致三个用例在准备阶段失败，随后在宿主环境重跑全套通过，未跳过这些边界用例。
+- Windows 实际执行 release-clawhub.mjs --skip-test --prepare-only 通过，覆盖 git 查询、changelog 生成、npm 构建及 13 文件白名单暂存；未上传。官方 OpenClaw 2026.10.9 公开 runtime 的离线 bili 验证通过，只使用本地合成图片，不联网、不生成付费图片。
+- 上一轮发布重试已从 5/13 推进到 12/13；templates/SOUL.fragment.md 上传授权连续六次尝试仍失败，最终版本提交未发出，确切版本查询仍为 Version not found。
+- 原验收包、accepted.json、哈希清单及 12/13 续传记录完整保留，仍对应重构前的暂存内容。本轮没有替换已安装 skill，也没有将重构后的源码套用到旧上传记录；后续若发布本轮源码，必须重新暂存并以新指纹追踪，不能把旧续传进度当作新包的上传结果。
+- 收尾逐项核对 out/ 原有 93 个文件的路径与 SHA256，全部一致。新临时白名单包的 13 项哈希、入口加载、零运行依赖及独立包官方 runtime 离线验证均通过，随后仅删除本轮新建的暂存包。
+- Standards 与 Spec 分别只读复核，均无发现；未发现功能倒退、越界清理或文档与本轮实现不一致。TypeScript 未使用变量/参数检查与 git diff --check 通过。

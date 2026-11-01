@@ -30,7 +30,7 @@ export function inspectImage(data: Buffer, maxBytes = MAX_IMAGE_BYTES): { mimeTy
   throw new Error("Unrecognized image content");
 }
 
-function contains(root: string, file: string): boolean {
+export function isPathInside(root: string, file: string): boolean {
   const relative = path.relative(root, file);
   return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
@@ -38,7 +38,7 @@ function contains(root: string, file: string): boolean {
 export function readImageFile(filePath: string, allowedRoots?: string[]) {
   const real = fs.realpathSync(filePath);
   const checkRoot = () => {
-    if (allowedRoots && !allowedRoots.some((root) => contains(root, real))) {
+    if (allowedRoots && !allowedRoots.some((root) => isPathInside(root, real))) {
       throw new Error("Avatar is outside the authorized image directories");
     }
     if (fs.realpathSync(filePath) !== real) throw new Error("Image path changed during validation");

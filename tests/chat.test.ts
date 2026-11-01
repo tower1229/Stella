@@ -39,6 +39,17 @@ describe("native chat preparation", () => {
     expect(result.toolInput).toMatchObject({ aspectRatio: "3:4", resolution: "4K" });
     releaseReferences(state.agents[0], result.referenceToken);
   });
+  it.each([
+    [".jpg", Buffer.from("ffd8ffd9", "hex")],
+    [".webp", Buffer.from("RIFF0000WEBPVP8 ", "ascii")],
+  ])("names %s snapshots from content and releases them", (extension, bytes) => {
+    // Accepted signature fixtures; the source filename does not determine the format.
+    fs.writeFileSync(path.join(root, "assets/main.png"), bytes);
+    const result = prepareChat(request, state);
+    expect(path.extname(result.toolInput.images[0])).toBe(extension);
+    expect(fs.readFileSync(result.toolInput.images[0])).toEqual(bytes);
+    expect(releaseReferences(state.agents[0], result.referenceToken).released).toBe(true);
+  });
   it("keeps overlapping preparations independent and only releases the matching Agent's scratch", () => {
     const a = prepareChat(request, state), b = prepareChat(request, state);
     expect(a.referenceToken).not.toBe(b.referenceToken);

@@ -47,6 +47,13 @@ export interface StellaHost<C> {
     };
   };
 }
+export interface ImagePreparationHost<C> {
+  config: C;
+  runtime: {
+    agent: StellaHost<C>["runtime"]["agent"];
+    imageGeneration: Pick<StellaHost<C>["runtime"]["imageGeneration"], "listProviders">;
+  };
+}
 export interface BiliImageRequest {
   schemaVersion: 1;
   agentId?: string;
@@ -142,7 +149,7 @@ function settings(config: unknown, workspace: string) {
 
 /** Shared validated inputs for native chat tools and in-process plugin calls. */
 export function prepareImageRequest<C>(
-  api: StellaHost<C>, integration: BiliIntegration<C>, value: BiliImageRequest,
+  api: ImagePreparationHost<C>, integration: BiliIntegration<C>, value: BiliImageRequest,
   onReference: () => void = () => {},
 ) {
     const request = validateRequest(value);

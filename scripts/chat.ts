@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { InputError, prepareImageRequest, type BiliImageRequest, type StellaHost, type ImageProvider } from "./bili";
+import { InputError, prepareImageRequest, type BiliImageRequest, type ImagePreparationHost, type ImageProvider } from "./bili";
+import { inspectImage, isPathInside } from "./images";
 import { MissingConfigPathError, readAgentLocations, runOpenClawJson, type AgentLocation } from "./native-cli";
 
 interface ChatRequest extends BiliImageRequest { agentId: string; caption?: string }
@@ -20,16 +21,12 @@ export async function readChatState(agentId: string): Promise<ChatState> {
   return { agents, skills, providers: inventory.filter(p => p.available && p.configured) };
 }
 
-function inside(root: string, target: string) {
-  const relative = path.relative(root, target);
-  return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-}
 function checkedDirectory(workspace: string, directory: string): string {
   if (fs.lstatSync(directory).isSymbolicLink() || !fs.statSync(directory).isDirectory()) {
     throw new InputError("CONFIG_INVALID", "Reference scratch directories must be real directories.");
   }
   const real = fs.realpathSync(directory);
-  if (!inside(workspace, real)) throw new InputError("CONFIG_INVALID", "Reference scratch path leaves the Agent workspace.");
+  if (!isPathInside(workspace, real)) throw new InputError("CONFIG_INVALID", "Reference scratch path leaves the Agent workspace.");
   return real;
 }
 function scratchRoot(workspace: string, create: boolean) {
@@ -46,7 +43,7 @@ function scratchRoot(workspace: string, create: boolean) {
   }
   return current;
 }
-function host(state: ChatState): StellaHost<{ skills: unknown }> {
+function host(state: ChatState): ImagePreparationHost<{ skills: unknown }> {
   return { config: { skills: state.skills }, runtime: {
     agent: {
       resolveAgentWorkspaceDir: (_cfg, id) => state.agents.find(a => a.id === id)!.workspace,
@@ -54,7 +51,6 @@ function host(state: ChatState): StellaHost<{ skills: unknown }> {
     },
     imageGeneration: {
       listProviders: () => state.providers,
-      generate: async () => { throw new Error("Chat preparation never generates images."); },
     },
   } };
 }
@@ -85,8 +81,7 @@ export function prepareChat(request: ChatRequest, state: ChatState) {
   };
   try {
     const files = prepared.params.inputImages.map((image, index) => {
-      const extension = image.mimeType === "image/jpeg" ? "jpg" : image.mimeType === "image/webp" ? "webp" : "png";
-      const name = `ref-${index}.${extension}`;
+      const name = `ref-${index}${inspectImage(image.buffer).extension}`;
       writeSnapshot(name, image.buffer);
       return name;
     });
@@ -104,7 +99,7 @@ export function prepareChat(request: ChatRequest, state: ChatState) {
         checkedDirectory(prepared.workspace, directory);
         const file = path.join(directory, name);
         const stat = fs.lstatSync(file);
-        if (!stat.isFile() || stat.isSymbolicLink() || !inside(directory, fs.realpathSync(file))) {
+        if (!stat.isFile() || stat.isSymbolicLink() || !isPathInside(directory, fs.realpathSync(file))) {
           throw new Error("Reference file changed during cleanup.");
         }
         fs.unlinkSync(file);
@@ -146,7 +141,7 @@ export function releaseReferences(agent: AgentLocation, token: string) {
     checkedDirectory(workspace, directory);
     const file = path.join(directory, name);
     if (!fs.existsSync(file)) continue;
-    if (fs.lstatSync(file).isSymbolicLink() || !inside(directory, fs.realpathSync(file))) throw new InputError("INPUT_INVALID", "Reference file changed during cleanup.");
+    if (fs.lstatSync(file).isSymbolicLink() || !isPathInside(directory, fs.realpathSync(file))) throw new InputError("INPUT_INVALID", "Reference file changed during cleanup.");
     fs.unlinkSync(file);
   }
   fs.rmdirSync(directory);
