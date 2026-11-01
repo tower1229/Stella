@@ -44,8 +44,9 @@ describe("selfie/timeline documentation contract", () => {
     expect(timelineDoc).toContain("do not introduce names such as `小刘`, `Leon`, or other third-person substitutions");
     expect(timelineDoc).not.toContain("prefer `third_person` when the recovered scene does not plausibly read as a selfie");
     expect(timelineDoc).toContain(
-      "The outdoor environment must display the real-time weather conditions and natural lighting and shadow effects"
+      "This skill does not enable search grounding or add a weather lookup."
     );
+    expect(timelineDoc).not.toContain("must display the real-time weather conditions");
     expect(timelineDoc).not.toContain("Make it feel like this was just captured");
     expect(timelineDoc).not.toContain("partial scene details");
     expect(timelineDoc).not.toContain("fresh_moment");
@@ -69,5 +70,17 @@ describe("selfie/timeline documentation contract", () => {
 
     expect(smoke).toContain("A natural third-person photo of this person");
     expect(smoke).not.toContain("A travel photo of this person");
+  });
+  it("documents native chat reference optimization separately from direct bili buffers", () => {
+    const skill = readRepoFile("SKILL.md");
+    const readme = readRepoFile("README.md");
+    const readmeCn = readRepoFile("README_CN.md");
+    const bili = readRepoFile("references", "bili-integration.md");
+    for (const doc of [skill, readme, bili]) expect(doc).toContain("native image tool may resize or re-encode");
+    expect(skill).not.toContain("File checks and uploads use the same validated bytes.");
+    expect(skill).toContain("Original-byte upload is not guaranteed.");
+    expect(readme).toContain("Original-byte upload is not guaranteed.");
+    expect(readmeCn).toContain("不保证原始字节上传");
+    expect(bili).toContain("does not invoke that chat-tool optimization");
   });
 });

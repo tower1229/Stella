@@ -1,14 +1,13 @@
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 // Inspect content rather than trusting a filename or a server's Content-Type.
 // This checks format signatures, not a full image decode.
-export function inspectImage(data: Buffer): { mimeType: string; extension: string } {
-  if (data.length === 0 || data.length > MAX_IMAGE_BYTES) {
-    throw new Error("Image must contain between 1 byte and 20 MiB");
+export function inspectImage(data: Buffer, maxBytes = MAX_IMAGE_BYTES): { mimeType: string; extension: string } {
+  if (data.length === 0 || data.length > maxBytes) {
+    throw new Error(`Image must contain between 1 byte and ${maxBytes} bytes`);
   }
   if (data.length >= 24 && data.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")) &&
       data.toString("ascii", 12, 16) === "IHDR" && data.readUInt32BE(16) > 0 && data.readUInt32BE(20) > 0) {
@@ -34,21 +33,6 @@ export function inspectImage(data: Buffer): { mimeType: string; extension: strin
 function contains(root: string, file: string): boolean {
   const relative = path.relative(root, file);
   return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-}
-
-function avatarRoots(): string[] {
-  const configured = process.env.AvatarAllowedRoots;
-  if (configured) {
-    const roots: unknown = JSON.parse(configured);
-    if (!Array.isArray(roots) || roots.length === 0 ||
-        !roots.every((root) => typeof root === "string" && path.isAbsolute(root))) {
-      throw new Error("AvatarAllowedRoots must be a JSON array of absolute directory paths");
-    }
-    return roots.map((root: string) => fs.realpathSync(root));
-  }
-  const workspace = fs.realpathSync(path.join(os.homedir(), ".openclaw", "workspace"));
-  // Do not implicitly authorize an avatars/assets symlink pointing outside the workspace.
-  return [path.join(workspace, "avatars"), path.join(workspace, "assets")];
 }
 
 export function readImageFile(filePath: string, allowedRoots?: string[]) {
@@ -85,11 +69,12 @@ export function readImageFile(filePath: string, allowedRoots?: string[]) {
   }
 }
 
-export function readReferenceImage(filePath: string) {
+export function readReferenceImage(filePath: string, allowedRoots?: string[]) {
+  if (!allowedRoots?.length) throw new Error("Explicit Agent reference authorization is required.");
   if (![".jpg", ".jpeg", ".png", ".webp"].includes(path.extname(filePath).toLowerCase())) {
     throw new Error("Avatar must use jpg, jpeg, png or webp format");
   }
-  const image = readImageFile(filePath, avatarRoots());
+  const image = readImageFile(filePath, allowedRoots);
   if (!["image/jpeg", "image/png", "image/webp"].includes(image.mimeType)) {
     throw new Error("Unsupported avatar image format");
   }

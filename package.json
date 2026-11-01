@@ -1,11 +1,10 @@
 {
   "name": "stella-selfie",
-  "version": "1.4.1",
-  "description": "Generate persona-consistent selfie images and send to any OpenClaw channel. Supports Gemini and fal providers, multi-reference avatar blending.",
+  "version": "2.0.0",
+  "description": "Persona-consistent Google-native images for the current OpenClaw conversation and same-host plugins.",
   "keywords": [
     "openclaw",
     "gemini",
-    "fal",
     "selfie",
     "ai-agent",
     "image-generation",
@@ -19,23 +18,19 @@
   },
   "homepage": "https://github.com/tower1229/Stella#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.22.1 <25 || >=26.12.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "ts-node scripts/smoke.ts --outdir ./out",
+    "smoke": "npm run build && node dist/scripts/smoke.js",
     "sync:local": "node ./scripts/sync-local-openclaw.mjs",
     "release:clawhub": "node ./scripts/release-clawhub.mjs"
   },
-  "dependencies": {
-    "@fal-ai/client": "^1.9.5",
-    "@google/genai": "^1.49.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^25.5.2",
-    "ts-node": "^10.9.2",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   }

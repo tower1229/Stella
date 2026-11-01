@@ -1,60 +1,24 @@
-# ClawHub: exclude everything that is not needed to run
-#   node {baseDir}/dist/scripts/skill.js
-# Shipped: SKILL.md, package.json, runtime JS, references/**, templates/**
-
-# Dependencies & artifacts
-node_modules/
-coverage/
-
-# Git ignores dist/, but the skill invokes its compiled runtime directly.
-!/dist/
-/dist/**
-!/dist/scripts/
-!/dist/scripts/*.js
-!/dist/scripts/providers/
-!/dist/scripts/providers/*.js
-/dist/scripts/smoke.js
-
-# Secrets & local overrides
-.env
-.env.*
-
-# VCS, editor, OS noise
-.git/
-.github/
-.cursor/
-.vscode/
-.idea/
-.DS_Store
-**/.DS_Store
-
-# Maintainer-only scripts (not the skill entrypoint)
-/scripts/
-.codex/
-.agents/
-
-# Tests, internal docs, publish metadata
-tests/
-docs/
-.gitignore
-.clawhubignore
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# Repo readme (SKILL.md is the hub-facing contract)
-/README.md
-/README_CN.md
-
-# Local dev trees & smoke output
-sandbox/
-smoke/
-out/
-
-# User reference photos / stray binaries (never bundle)
-avatars/
-*.jpg
-*.jpeg
-*.png
-*.webp
-*.gif
+# scripts/skill-bundle.mjs is the authoritative release allowlist.
+# Also exclude stale compiled providers from direct scans.
+**
+!SKILL.md
+!package.json
+!references/
+references/**
+!references/timeline-integration.md
+!references/bili-integration.md
+!templates/
+templates/**
+!templates/SOUL.fragment.md
+!dist/
+dist/**
+!dist/scripts/
+dist/scripts/**
+!dist/scripts/avatars.js
+!dist/scripts/bili.js
+!dist/scripts/chat.js
+!dist/scripts/errors.js
+!dist/scripts/identity.js
+!dist/scripts/images.js
+!dist/scripts/native-cli.js
+!dist/scripts/skill.js

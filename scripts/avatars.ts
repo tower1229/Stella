@@ -59,8 +59,11 @@ export function selectAvatars(options: {
   avatarsDir: string | null;
   avatarMaxRefs: number;
   avatarBlendEnabled: boolean;
+  allowedRoots?: string[];
+  onWarning?: (message: string) => void;
 }): string[] {
   const { avatar, avatarsDir, avatarMaxRefs, avatarBlendEnabled } = options;
+  const warn = options.onWarning ?? console.warn;
 
   const seenRealpaths = new Set<string>();
   const result: string[] = [];
@@ -69,30 +72,30 @@ export function selectAvatars(options: {
   if (avatar) {
     if (fs.existsSync(avatar)) {
       try {
-        readReferenceImage(avatar);
+        readReferenceImage(avatar, options.allowedRoots);
         const real = safeRealpath(avatar);
         if (real) {
           seenRealpaths.add(real);
           result.push(toPosixPath(avatar));
         }
       } catch (err) {
-        console.warn(`[stella] Warning: Invalid Avatar: ${(err as Error).message}`);
+        warn(`[stella] Warning: Invalid Avatar: ${(err as Error).message}`);
       }
     } else {
-      console.warn(`[stella] Warning: Avatar not found: ${avatar}`);
+      warn(`[stella] Warning: Avatar not found: ${avatar}`);
     }
   }
 
   // Scan AvatarsDir if blending is enabled
   if (avatarBlendEnabled && avatarsDir) {
     if (!fs.existsSync(avatarsDir)) {
-      console.warn(`[stella] Warning: AvatarsDir not found: ${avatarsDir}`);
+      warn(`[stella] Warning: AvatarsDir not found: ${avatarsDir}`);
     } else {
       let entries: fs.Dirent[];
       try {
         entries = fs.readdirSync(avatarsDir, { withFileTypes: true });
       } catch (err) {
-        console.warn(
+        warn(
           `[stella] Warning: Cannot read AvatarsDir: ${avatarsDir} — ${(err as Error).message}`
         );
         entries = [];
@@ -117,7 +120,7 @@ export function selectAvatars(options: {
       }
 
       // Sort newest first
-      candidates.sort((a, b) => b.time - a.time);
+      candidates.sort((a, b) => b.time - a.time || a.filePath.localeCompare(b.filePath));
 
       for (const candidate of candidates) {
         if (result.length >= avatarMaxRefs) break;
@@ -126,9 +129,9 @@ export function selectAvatars(options: {
         if (!real || seenRealpaths.has(real)) continue;
 
         try {
-          readReferenceImage(candidate.filePath);
+          readReferenceImage(candidate.filePath, options.allowedRoots);
         } catch (err) {
-          console.warn(`[stella] Warning: Invalid reference image: ${(err as Error).message}`);
+          warn(`[stella] Warning: Invalid reference image: ${(err as Error).message}`);
           continue;
         }
 

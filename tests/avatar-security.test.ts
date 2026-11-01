@@ -1,88 +1,43 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { selectAvatars } from "../scripts/avatars";
-import { generateWithGemini } from "../scripts/providers/gemini";
-import { generateWithLaozhang } from "../scripts/providers/laozhang";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readReferenceImage } from "../scripts/images";
 
-const provider = vi.hoisted(() => ({ generate: vi.fn() }));
-vi.mock("@google/genai", () => ({ GoogleGenAI: class {
-  models = { generateContent: provider.generate };
-} }));
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
-
-describe("avatar upload boundary", () => {
-  let root: string;
-  let avatar: string;
+describe("reference authorization boundary", () => {
+  let root: string, allowed: string, avatar: string;
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-avatar-boundary-"));
-    fs.mkdirSync(path.join(root, "avatars"));
-    avatar = path.join(root, "avatars", "main.png");
-    fs.writeFileSync(avatar, png);
-    vi.stubEnv("AvatarAllowedRoots", JSON.stringify([path.join(root, "avatars")]));
-    vi.stubGlobal("fetch", vi.fn());
-    provider.generate.mockReset();
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-boundary-"));
+    allowed = path.join(root, "avatars"); fs.mkdirSync(allowed);
+    avatar = path.join(allowed, "main.png"); fs.writeFileSync(avatar, png);
   });
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-    fs.rmSync(root, { recursive: true, force: true });
+  afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+  it("returns validated bytes only when an explicit Agent root authorizes them", () => {
+    expect(readReferenceImage(avatar, [allowed]).data).toEqual(png);
+    expect(() => readReferenceImage(avatar)).toThrow("Explicit Agent");
   });
-  function select(file = avatar, dir: string | null = path.dirname(avatar)) {
-    return selectAvatars({ avatar: file, avatarsDir: dir, avatarMaxRefs: 3, avatarBlendEnabled: true });
-  }
-  it("keeps authorized images selectable", () => {
-    expect(select()).toEqual([avatar]);
+  it("rejects sibling-prefix directories and a valid image outside the authorized root", () => {
+    const sibling = path.join(root, "avatars-private"); fs.mkdirSync(sibling);
+    const file = path.join(sibling, "private.png"); fs.writeFileSync(file, png);
+    expect(() => readReferenceImage(file, [allowed])).toThrow("outside");
   });
-  it.each(["secret.txt", "disguised.png"])("rejects non-image primary avatars: %s", (name) => {
-    const file = path.join(path.dirname(avatar), name);
-    fs.writeFileSync(file, "private-not-an-image");
-    expect(select(file, null)).toEqual([]);
+  it("rejects an outward directory junction, including after a previously valid read", () => {
+    const nested = path.join(allowed, "nested"); fs.mkdirSync(nested);
+    const file = path.join(nested, "ref.png"); fs.writeFileSync(file, png);
+    expect(readReferenceImage(file, [allowed]).data).toEqual(png);
+    const external = path.join(root, "private"); fs.mkdirSync(external); fs.writeFileSync(path.join(external, "ref.png"), png);
+    fs.rmSync(nested, { recursive: true }); fs.symlinkSync(external, nested, "junction");
+    expect(() => readReferenceImage(file, [allowed])).toThrow("outside");
   });
-  it("rejects sibling-prefix traversal and external files even when they are images", () => {
-    const sibling = path.join(root, "avatars-private");
-    fs.mkdirSync(sibling);
-    const file = path.join(sibling, "private.png");
-    fs.writeFileSync(file, png);
-    expect(select(file, sibling)).toEqual([]);
-  });
-  it("rejects primary symlinks escaping an authorized root", () => {
-    const external = path.join(root, "private.png");
-    fs.writeFileSync(external, png);
-    fs.unlinkSync(avatar);
-    fs.symlinkSync(external, avatar);
-    expect(select(avatar, null)).toEqual([]);
-  });
-  it("rejects nonregular and oversized primary files", () => {
-    expect(select(path.dirname(avatar), null)).toEqual([]);
+  it("rejects forged extensions, disallowed reference formats, oversized and nonregular files", () => {
+    fs.writeFileSync(avatar, "private text");
+    expect(() => readReferenceImage(avatar, [allowed])).toThrow();
+    const txt = path.join(allowed, "ref.txt"); fs.writeFileSync(txt, png);
+    expect(() => readReferenceImage(txt, [allowed])).toThrow("format");
     fs.truncateSync(avatar, 20 * 1024 * 1024 + 1);
-    expect(select(avatar, null)).toEqual([]);
-  });
-  it.each(['not-json', '{}', '[]', '["relative/path"]'])("fails closed for invalid root authorization: %s", (roots) => {
-    vi.stubEnv("AvatarAllowedRoots", roots);
-    expect(select()).toEqual([]);
-  });
-  it.each(["gemini", "laozhang"])("%s revalidates a reference changed after selection", async (name) => {
-    expect(select()).toEqual([avatar]);
-    const external = path.join(root, "external.png");
-    fs.writeFileSync(external, png);
-    fs.unlinkSync(avatar);
-    fs.symlinkSync(external, avatar);
-    const generate = name === "gemini" ? generateWithGemini : generateWithLaozhang;
-    await expect(generate({ prompt: "test", referenceImages: [avatar], count: 1, resolution: "1K", apiKey: "mock-key" }))
-      .rejects.toThrow();
-    expect(provider.generate).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
-  });
-  it.each(["gemini", "laozhang"])("%s rejects invalid input before any API request", async (name) => {
-    fs.writeFileSync(avatar, "private-not-an-image");
-    const generate = name === "gemini" ? generateWithGemini : generateWithLaozhang;
-    await expect(generate({ prompt: "test", referenceImages: [avatar], count: 1, resolution: "1K", apiKey: "mock-key" }))
-      .rejects.toThrow();
-    expect(provider.generate).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(() => readReferenceImage(avatar, [allowed])).toThrow("20 MiB");
+    const directory = path.join(allowed, "directory.png"); fs.mkdirSync(directory);
+    expect(() => readReferenceImage(directory, [allowed])).toThrow();
   });
 });
