@@ -1,81 +1,71 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync, execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { prepareSkillBundle } from "./skill-bundle.mjs";
 
-const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const TARGET_DIR = '~/.openclaw/workspace/skills/stella-selfie';
-
-function ensureBuilt() {
-  const distDir = path.join(ROOT_DIR, "dist");
-  fs.rmSync(distDir, { recursive: true, force: true });
-
-  console.log("🛠️ Building local dist artifacts...");
-  const isWindows = os.platform() === 'win32';
-  
-  const result = spawnSync(isWindows ? "npm.cmd" : "npm", ["run", "build"], {
-    cwd: ROOT_DIR,
-    stdio: "inherit",
-    shell: isWindows,
-  });
-
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status || 1);
-
-  const distEntrypoint = path.join(ROOT_DIR, "dist", "scripts", "skill.js");
-  if (!fs.existsSync(distEntrypoint)) {
-    console.error(`❌ Missing build output: ${distEntrypoint}`);
-    process.exit(1);
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const args = process.argv.slice(2);
+const fail = message => { throw new Error(message); };
+if (args.length !== 2 || !["--agent", "--skills-dir"].includes(args[0])) {
+  fail("Usage: npm run sync:local -- --agent <id> | --skills-dir <absolute skills directory>");
+}
+const build = spawnSync(process.execPath, [require.resolve("typescript/bin/tsc"), "-p", path.join(repo, "tsconfig.json")], {
+  cwd: repo, stdio: "inherit", shell: false, windowsHide: true,
+});
+if (build.error) throw build.error;
+if (build.status !== 0) process.exit(build.status ?? 1);
+let skillsDirectory;
+if (args[0] === "--agent") {
+  const { readAgentLocations } = await import("../dist/scripts/native-cli.js");
+  const agent = (await readAgentLocations()).find(agent => agent.id === args[1]);
+  if (!agent) fail("The selected Agent does not exist.");
+  skillsDirectory = path.join(fs.realpathSync(agent.workspace), "skills");
+} else {
+  if (!path.isAbsolute(args[1])) fail("--skills-dir must be absolute.");
+  skillsDirectory = path.resolve(args[1]);
+}
+const target = path.join(skillsDirectory, "stella-selfie");
+if (target === repo || repo.startsWith(target + path.sep) || target.startsWith(repo + path.sep)) {
+  fail("Choose an installed skills directory outside this checkout.");
+}
+function ensureDirectory(directory) {
+  if (fs.existsSync(directory)) {
+    const stat = fs.lstatSync(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) fail("Sync destination contains a link or non-directory.");
+  } else {
+    const parent = path.dirname(directory);
+    if (parent === directory) fail("Cannot create destination root.");
+    ensureDirectory(parent);
+    fs.mkdirSync(directory);
   }
 }
-
-function syncRepo() {
-  const isWSL = os.release().toLowerCase().includes('microsoft');
-  const isWindows = os.platform() === 'win32';
-  
-  const excludes = [
-    ".git",
-    "node_modules",
-    "coverage",
-    "out",
-    "sandbox",
-    ".env",
-    ".env.*",
-    ".clawhub",
-    "_meta.json"
-  ];
-  const excludeStr = excludes.map(e => `--exclude '${e}'`).join(" ");
-
-  let cmd = '';
-  
-  if (isWSL || !isWindows) {
-      console.log(`📡 Detected Native/WSL environment. Syncing to ${TARGET_DIR}...`);
-      cmd = `mkdir -p ${TARGET_DIR} && rsync -av ${excludeStr} ./ ${TARGET_DIR}/ && cd ${TARGET_DIR} && npm install`;
-  } else if (isWindows) {
-      console.log(`📡 Detected Windows environment. Calling WSL rsync to sync to ${TARGET_DIR}...`);
-      try {
-          const cwd = ROOT_DIR.replace(/\\/g, '/');
-          const wslPathStr = execSync(`wsl wslpath -u "${cwd}"`).toString().trim();
-          cmd = `wsl bash -c "mkdir -p ${TARGET_DIR} && rsync -av ${excludeStr} ${wslPathStr}/ ${TARGET_DIR}/ && cd ${TARGET_DIR} && npm install"`;
-      } catch (e) {
-          console.error('❌ Failed to construct WSL command. Are you sure WSL is installed and running?');
-          process.exit(1);
-      }
-  }
-
-  try {
-      execSync(cmd, { stdio: 'inherit', cwd: ROOT_DIR });
-      console.log('✅ Successfully synced stella-selfie files to your local OpenClaw workspace!');
-  } catch (e) {
-      console.error('❌ Sync failed:', e.message);
-      process.exit(1);
-  }
+let ancestor = target;
+while (true) {
+  if (fs.existsSync(ancestor) && fs.lstatSync(ancestor).isSymbolicLink()) fail("Sync destination contains a link.");
+  const parent = path.dirname(ancestor);
+  if (parent === ancestor) break;
+  ancestor = parent;
 }
-
-function main() {
-  ensureBuilt();
-  syncRepo();
+const staging = fs.mkdtempSync(path.join(os.tmpdir(), "stella-local-sync-"));
+try {
+  const bundle = prepareSkillBundle(repo, staging);
+  ensureDirectory(target);
+  for (const file of bundle.files) {
+    const destination = path.join(target, file.path);
+    ensureDirectory(path.dirname(destination));
+    if (fs.existsSync(destination) && (!fs.lstatSync(destination).isFile() || fs.lstatSync(destination).isSymbolicLink())) {
+      fail("A destination runtime file is not a regular file.");
+    }
+  }
+  for (const file of bundle.files) fs.copyFileSync(path.join(bundle.bundlePath, file.path), path.join(target, file.path));
+  console.log(JSON.stringify({ ok: true, target, files: bundle.files.length, fingerprint: bundle.fingerprint }));
+  console.log("Runtime files copied; existing user files retained. Refresh the host skill snapshot as appropriate.");
+} finally {
+  const actual = fs.realpathSync(staging);
+  if (path.dirname(actual) !== fs.realpathSync(os.tmpdir()) || !path.basename(actual).startsWith("stella-local-sync-")) fail("Unexpected staging path.");
+  fs.rmSync(actual, { recursive: true, force: true });
 }
-
-main();

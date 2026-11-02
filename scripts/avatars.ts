@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { readReferenceImage } from "./images";
 
 const SUPPORTED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
@@ -53,40 +54,54 @@ function safeRealpath(filePath: string): string | null {
  * 4. Deduplicate by realpath, keeping Avatar at position 0
  * 5. Warn (don't throw) if AvatarsDir is missing or unreadable
  */
+export interface SelectedReference {
+  filePath: string;
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export function selectAvatars(options: {
   avatar: string | null;
   avatarsDir: string | null;
   avatarMaxRefs: number;
   avatarBlendEnabled: boolean;
-}): string[] {
+  allowedRoots?: string[];
+  onWarning?: (message: string) => void;
+}): SelectedReference[] {
   const { avatar, avatarsDir, avatarMaxRefs, avatarBlendEnabled } = options;
+  const warn = options.onWarning ?? console.warn;
 
   const seenRealpaths = new Set<string>();
-  const result: string[] = [];
+  const result: SelectedReference[] = [];
 
   // Add primary Avatar first
   if (avatar) {
     if (fs.existsSync(avatar)) {
-      const real = safeRealpath(avatar);
-      if (real) {
-        seenRealpaths.add(real);
-        result.push(toPosixPath(avatar));
+      try {
+        const image = readReferenceImage(avatar, options.allowedRoots);
+        const real = safeRealpath(avatar);
+        if (real) {
+          seenRealpaths.add(real);
+          result.push({ filePath: toPosixPath(avatar), buffer: image.data, mimeType: image.mimeType });
+        }
+      } catch (err) {
+        warn(`[stella] Warning: Invalid Avatar: ${(err as Error).message}`);
       }
     } else {
-      console.warn(`[stella] Warning: Avatar not found: ${avatar}`);
+      warn(`[stella] Warning: Avatar not found: ${avatar}`);
     }
   }
 
   // Scan AvatarsDir if blending is enabled
   if (avatarBlendEnabled && avatarsDir) {
     if (!fs.existsSync(avatarsDir)) {
-      console.warn(`[stella] Warning: AvatarsDir not found: ${avatarsDir}`);
+      warn(`[stella] Warning: AvatarsDir not found: ${avatarsDir}`);
     } else {
       let entries: fs.Dirent[];
       try {
         entries = fs.readdirSync(avatarsDir, { withFileTypes: true });
       } catch (err) {
-        console.warn(
+        warn(
           `[stella] Warning: Cannot read AvatarsDir: ${avatarsDir} — ${(err as Error).message}`
         );
         entries = [];
@@ -111,7 +126,7 @@ export function selectAvatars(options: {
       }
 
       // Sort newest first
-      candidates.sort((a, b) => b.time - a.time);
+      candidates.sort((a, b) => b.time - a.time || a.filePath.localeCompare(b.filePath));
 
       for (const candidate of candidates) {
         if (result.length >= avatarMaxRefs) break;
@@ -119,8 +134,16 @@ export function selectAvatars(options: {
         const real = safeRealpath(candidate.filePath);
         if (!real || seenRealpaths.has(real)) continue;
 
+        let image: ReturnType<typeof readReferenceImage>;
+        try {
+          image = readReferenceImage(candidate.filePath, options.allowedRoots);
+        } catch (err) {
+          warn(`[stella] Warning: Invalid reference image: ${(err as Error).message}`);
+          continue;
+        }
+
         seenRealpaths.add(real);
-        result.push(toPosixPath(candidate.filePath));
+        result.push({ filePath: toPosixPath(candidate.filePath), buffer: image.data, mimeType: image.mimeType });
       }
     }
   }

@@ -1,10 +1,14 @@
-# Stella — [English README](README.md)
+# Stella Selfie — [English](README.md)
 
-让 OpenClaw 稳定生成**人设一致**的自拍图片。支持 自拍照、镜像照、第三人称照片 三种模式，并支持设置多张参考图以增强角色一致性。
+让 OpenClaw 助手真正「长得像自己」。
+
+Stella 用 Google 官方原生图片生成，按人设拍出外观一致的自拍和照片——不是随机换脸，也不是每次都是另一个人。支持直接自拍、镜面自拍、第三人称照片三种模式，可叠加多张本地参考图。聊天里的普通请求会把一张图发到当前会话；同宿主 plugin 则直接拿到图片 Buffer，由调用方自己做预览、存储和发布。
 
 |                     自拍照                     |                     镜像照                     |                       第三人称照片                       |
 | :--------------------------------------------: | :--------------------------------------------: | :------------------------------------------------------: |
 | ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Third-Person Photo](./assets/Third-Person%20Photo.jpg) |
+
+默认 `google/gemini-3-pro-image`、2K、单图，不指定画幅。Stella 不额外保存生成图片，即使用户明确要求副本。
 
 ## 安装
 
@@ -12,214 +16,136 @@
 clawhub install stella-selfie
 ```
 
-> 或者从[ClawHub](https://clawhub.ai/skills/stella-selfie)下载安装包，手动安装。
+> 或者从 [ClawHub](https://clawhub.ai/skills/stella-selfie) 下载安装包，手动安装。
 
-安装完成后，请先完成以下配置再使用该 skill。
+已验证 OpenClaw 2026.10.9。宿主须兼容 `image_generate`、provider 清单和 Agent 解析接口，并使用宿主支持的 Node 版本（基线 `>=24.22.1 <25` 或 `>=26.12.1`）。运行包没有 npm 依赖。通过 OpenClaw 原生 provider/auth 配置所选 Agent 的 Google 认证，旧的 skill 专用 key 不会自动迁移。
+
+请安装到目标宿主、profile 和工作区作用域。本次请求需要 `image_generate`、写入请求 JSON、运行参考图准备/清理脚本的权限，并能读取实际 Agent 工作区。
+
+> **Windows PowerShell**：完整 Node 路径前加 `&`；临时请求文件用 `Remove-Item -LiteralPath` 清理。等准备/清理进程结束后再继续，不要把进程完成通知当成图片完成事件。
 
 ## 配置
 
 ### 1. OpenClaw `openclaw.json`
 
-在 OpenClaw 配置文件 `~/.openclaw/openclaw.json` 的 `skills.entries.stella-selfie.env` 下统一配置（provider 密钥 + 参考图设置）。
+非敏感配置放在 `skills.entries.stella-selfie.config`：
 
-```json5
+```json
 {
-  skills: {
-    entries: {
-      "stella-selfie": {
-        enabled: true,
-        env: {
-          // 必填,当 Provider=gemini 时需要,其他时候可以随便设置一个值
-          GEMINI_API_KEY: "your_gemini_api_key",
-          // 必填,当 Provider=fal 时需要,其他时候可以随便设置一个值
-          FAL_KEY: "your_fal_api_key",
-          // 必填,当 Provider=laozhang 时需要,其他时候可以随便设置一个值
-          LAOZHANG_API_KEY: "sk-your_laozhang_api_key",
-
-          // 可选参数
-          Provider: "gemini",
-          AvatarBlendEnabled: "true",
-          AvatarMaxRefs: "3",
-        },
-      },
-    },
-  },
+  "model": "google/gemini-3-pro-image",
+  "AvatarBlendEnabled": true,
+  "AvatarMaxRefs": 3
 }
 ```
 
-> **Sandbox 提示**：如果你在 sandbox（Docker）中运行 OpenClaw，host 侧的 `skills.entries.*.env` 注入不会自动进入容器。需要同时在 `agents.defaults.sandbox.docker.env`（或 per-agent）里配置容器内的环境变量。
+| 选项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `model` | `google/gemini-3-pro-image` | 宿主原生 Google provider 声明支持的图片模型 |
+| `AvatarBlendEnabled` | `true` | 是否融合 `AvatarsDir` 里的额外参考图；`false` 时只用主图 `Avatar` |
+| `AvatarMaxRefs` | `3` | 最多融合多少张本地参考图（当前 Google 宿主上限 5） |
+| `AvatarAllowedRoots` | 工作区 `assets/`、`avatars/` | 非空绝对目录数组，**替换**默认允许根 |
 
-| 选项                 | 默认值   | 说明                                                                                                            |
-| -------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| `Provider`           | `gemini` | 图片生成 provider：`gemini`、`fal` 或 `laozhang`                                                                |
-| `AvatarBlendEnabled` | `true`   | 是否启用多参考图融合（`false` 时将忽略 `AvatarsDir`，仅使用 `Avatar` 作为参考图；若 `Avatar` 不可用则拒绝生成） |
-| `AvatarMaxRefs`      | `3`      | 最多融合多少张参考图(详细规则将见下方 IDENTITY.md 设置)                                                         |
-
-> **Provider=fal 注意**：fal 的 image editing API 只接受 HTTP/HTTPS 图片 URL，不支持本地文件路径。要用 fal 进行编辑，请在 `IDENTITY.md` 里配置 `AvatarsURLs`（公开可访问的参考图 URL）。
-
-> **Provider=laozhang 注意**：laozhang.ai 使用 Google 原生 Gemini API 格式（`gemini-3.1-flash-image-preview`）。它要求使用 `Avatar` / `AvatarsDir` 的本地参考图（与 `Provider=gemini` 行为一致），不会使用 `AvatarsURLs`。
+`AvatarBlendEnabled` / `AvatarMaxRefs` / `AvatarAllowedRoots` 仍可读旧环境变量。优先级：config → 进程 env → skill env → 默认值。指向工作区外的符号链接 / junction 不会自动授权其目标。
 
 ### 2. IDENTITY.md
 
-在 `~/.openclaw/workspace/IDENTITY.md` 中添加如下字段：
+在实际 Agent 工作区写入：
 
 ```markdown
-- Avatar: avatars/avatar-main.png
-- AvatarsDir: avatars/
-- AvatarsURLs: https://cdn.example.com/ref1.jpg, https://cdn.example.com/ref2.jpg
+Avatar: ./assets/avatar-main.png
+AvatarsDir: ./avatars
 ```
 
-- `Avatar`：头像路径（将作为主参考图使用）
-- `AvatarsDir`：额外参考图目录（同一角色，不同风格/场景/穿搭）；`AvatarBlendEnabled=true` 且 `Provider=gemini | laozhang` 必须配置并读取此目录
-- `AvatarsURLs`：参考图的公开 URL，半角逗号分隔；`Provider=fal` 时必须配置
+- `Avatar`：主参考图。一张有效本地图即可。
+- `AvatarsDir`：同一角色、不同风格/场景/穿搭的额外参考图，可选。
 
-### 3. 参考图片（`avatars/` 目录）
+`AvatarsURLs` 会被忽略，只使用授权的本地文件。
 
-将参考照片放到 `AvatarsDir` 所配置的路径下：
+### 3. 参考图片
 
-- 支持格式：`jpg` / `jpeg` / `png` / `webp`
-- 照片应为同一角色
-- 不同风格、场景、表情更有助于一致性（前提是 **同一人且关键特征一致**）
-- 按创建时间选择（最新优先），最多选 `AvatarMaxRefs` 张
+把参考照片放到 `AvatarsDir` 配置的路径下：
 
-### 4. SOUL.md
+- JPEG / PNG / WebP，签名匹配，每张不超过 20 MiB
+- 须为同一角色，关键特征稳定
+- 不同风格、场景、穿搭和表情更有助于一致性
+- 主图优先、真实路径去重；额外图按 `birthtime` 优先，再 `mtime` / `ctime`，新到旧
 
-将下方内容直接复制粘贴到 `~/.openclaw/workspace/SOUL.md`：
+聊天快照会保留校验后的输入，但原生图片工具可能在上传前缩放或重新编码参考图，从而改变尺寸、格式和细节，不保证原始字节上传。宿主媒体限制、Stella 的 20 MiB 校验、以及请求的成品分辨率分开管理。同宿主 plugin 路径会直接传递校验后的 Buffer，不经过聊天工具的这一步优化。
+
+### 4. 可选 SOUL.md
+
+保留你自己的人格文件。`templates/SOUL.fragment.md` 仅供按需合并：
 
 ```markdown
 ## Image Capability
 
-You have a physical appearance and can take selfies and photos.
+You can use the `stella-selfie` skill to generate persona-consistent selfies and photos.
+When the user requests a picture of you, use their requested scene and camera style.
+Examples: "send a pic", "send a selfie", "show me what you look like", "发张照片", "发自拍".
 
-Use the `stella-selfie` skill whenever the user asks for a picture of you — including but not limited to:
-"send a pic", "send a selfie", "send me a photo", "show me what you look like", "发张照片", "发自拍"
+Follow the skill's configuration, image validation and delivery rules. If configuration
+is incomplete, explain what is missing before generating or sending an image.
 ```
 
 ## 用法
 
 配置好后，直接用自然语言对 OpenClaw agent 说：
 
-- “发张自拍”
-- “发张照片，在咖啡馆里”
+- “发张自拍”：默认镜面自拍；没给场景细节且时间线可用时，也可能用时间线场景
+- “发张窗边的自拍，4K”
+- “发张第三人称照片，3:4”
 - “让我看看你在海滩上的样子”
-- “发张屋顶派对的照片，2K 分辨率”
 
-### 支持分辨率
+用户明确提供的配文留在会话回复里，不混进提示词。
 
-| 用户说                              | 分辨率 |
-| ----------------------------------- | ------ |
-| (default)                           | `1K`   |
-| 2k, 2048, medium res, 中等分辨率    | `2K`   |
-| 4k, high res, ultra, 超清, 高分辨率 | `4K`   |
+### 分辨率
 
-### 参考图设置
+| 用户说 | 分辨率 |
+| --- | --- |
+| （默认）、2k、2048、medium res、中等分辨率 | `2K` |
+| 1k、low res、低分辨率 | `1K` |
+| 4k、high res、ultra、超清、高分辨率 | `4K` |
 
-要生成人物一致性强的图片，需要合理设置参考图。推荐使用 Gemini 或 laozhang 作为 provider，并设置 `AvatarBlendEnabled=true`，然后配置 `AvatarsDir` 并放入同一人物的参考图。推荐至少 3 张参考图，以增强角色一致性。
+只有用户明确指定画幅时才传入宽高比，不会从提示词里猜测。
 
-### 与 stella-timeline-plugin 联动
+### 与时间线联动
 
-当用户提出的是 `Sparse` 图片请求，比如“发张自拍 / 发张照片 / 看看你现在什么样”，而没有明确场景、穿搭、地点、活动或镜头要求时，Stella 会尝试调用家族插件 [stella-timeline-plugin](https://www.npmjs.com/package/stella-timeline-plugin) 做上下文补全：
+用户只说「发张自拍 / 发张照片 / 想看看你」，没给场景细节（文档里叫 `Sparse`）；或者明确回指当前会话里刚刚解析过的某个场景。这时如果环境里有 `timeline_resolve`，Stella 会尽量按「现在」补全画面，让照片看起来像刚拍的：
 
-stella-timeline-plugin 可以赋予 OpenClaw 时间感知与连续记忆能力，使 OpenClaw 在任何时候都能对“此刻”或“某刻”提供一个合理的具象描述，而这可以与 Stella 产生奇妙的联动效果。
+- **和刚才说的时刻对得上**：聊天里说她在书房整理工作，自拍也会尽量还是那个书房、那件衣服、那个状态。
+- **没给细节也能补全**：地点、活动、情绪、穿着、时段可以自动填上，不必自己把提示词写全。
+- **细节更像随手拍**：窗边座位、桌面物件、街边栏杆、咖啡杯，而不是空洞的模板图。
+- **同一场景可以有不同光和构图**：同样是「下午在咖啡馆」，靠窗逆光、室内暖光、手持近景，其实是完全不同的画面。
+- **用户已经指定的内容优先**：已经指定地点、穿着、风格或镜头时，直接按你的要求来，时间线不覆盖。
+- 没有时间线也不影响正常使用，只是没有这些增强。
 
-- 接入真实记忆：优先检索记忆系统（会话+长期记忆+短期记忆），将真实发生的事具象化。
-- 记忆编织：如果目标时间没有记忆，会主动编织一个符合人设的合理记忆，完全无害，但是沉浸感拉满。
-- Sparse 请求也能接上：比如“来张现在的自拍”“发张照片”“想看看你”，timeline 可以把地点、活动、情绪、穿着、时段这些关键现实锚点补齐，不用你自己把 prompt 写得很累。
-- 同一时刻的真实感：聊天里说她在家里书房整理工作，自拍里也会尽量还是那个书房、那件衣服、那个状态，而不是突然跳到毫不相干的场景里。
-- 场景细节更像真的：除了地点和活动，timeline 还能补出窗边座位、桌面物件、街边栏杆、书堆、咖啡杯这类细节，让画面更像“刚刚随手拍的”，而不是空洞的模板图。
-- 光线和构图更自然：同样是“下午在咖啡馆”，靠窗逆光、室内暖光、镜前自拍、路人抓拍，其实是完全不同的画面语言。timeline 可以给 Stella 补充稳定的光线提示和构图提示。
-- 氛围感：包括作息时间、周末、节假日、社交状态等，都会影响穿着、神态和场景氛围，而且根据人格对不同事件也会产生不同的人物状态。
-- 真实世界锚点：当 timeline 能给出明确的城市、日期和本地时间时，Stella 可以把这些现实锚点直接交给 NanoBanana2，让户外场景，或者室内但能看到窗外的场景，看起来真的像是“那个城市那个时刻刚拍的”。
-- 更强的 grounding 句式：在户外真实感这件事上，Stella 现在更倾向于使用明确的硬指令句，而不是 `Make it feel like...` 这种偏氛围的软提示，避免“春夜感”“午后感”这类描述把真实天气和光影覆盖掉。
-- 真实世界感知：得益于 NanoBanana2 的真实世界感知能力，户外天气会尽量与真实世界同步。着装也会受到包括季节、气候、活动类型等影响，而且当天的室内穿搭会尽量保持连续，不会随便乱换。
-- 室内外边界也更合理：如果人是在室内靠窗坐着，那么窗外天气可以是真实的，但衣服仍然会以室内舒适为主；如果人是真的在户外，才会更明显地根据天气、风感、温度去调整穿搭。
-- 不抢用户主意：timeline 的深度联动只服务 Sparse 请求。如果你已经明确指定了地点、穿着、风格或镜头要求，Stella 会直接按你的要求来，不让 timeline 接管主体拍法。
-- 镜头变化：在 Sparse 的 timeline 联动里，恢复出来的现实场景会自然导向镜像自拍、直接自拍，或者第三人称照片，取决于哪种拍法最像真的刚拍出来。
+时间线可选，只做尽力增强。工具缺失、失败或空数据时回退默认规则。城市和时间只是场景锚点，不能证明真实天气；Stella 没有启用搜索 grounding。详细规则见 [timeline 说明](references/timeline-integration.md)。
 
-当然了，没有安装 stella-timeline-plugin 也不影响正常使用，只是无法实现这些联动。
+辅助脚本校验参考图并准备原生 `image_generate` 参数。聊天必须使用当前会话的实际 Agent，不会回退到 `main`。宿主异步生成并交付到当前会话。参考图临时快照在工具读取后、于本次请求内清理。准备失败会清理本次创建的文件，包括部分写入的文件，无法清理时报告目录供明确清理。不增加轮询、二次发送、跨渠道目标、批量或 Stella 重试。附件保留期由宿主管理，不承诺永久可用。
 
-关于可选 timeline 增强的详细消费与 prompt 组装规则，见 [references/timeline-integration.md](references/timeline-integration.md)。
+## 同宿主 plugin
 
-## 异常体验
+需要把照片当成字节去做预览、入库或发布？调用 `generateForPlugin`。调用方提供 Stella skill 目录和可选 `agentId`（未传 `agentId` 时使用 `main`，绑定不存在时报错）。这条 plugin 默认不适用于聊天。适配器解析实际 Agent 身份、工作区和认证目录，单次调用 `api.runtime.imageGeneration.generate`，返回 `Buffer` + MIME 或带生成结果状态的明确错误。Stella 不创建持久素材 ID、路径或文件。
 
-当生成失败时，Stella 会尝试向同一目标发送一条简短文本提示；在发送链路可用时可避免“无响应”的体验。
+接入说明见 [同进程适配](references/plugin-integration.md)。调用方 plugin 不在本仓库。
 
-常见提示场景：
+## 2.0 说明
 
-- 缺少密钥（`GEMINI_API_KEY` / `FAL_KEY` / `LAOZHANG_API_KEY`）
-- 限流或上游临时不可用（建议稍后重试）
-- 安全拦截（建议改写提示词）
-- fal 参考图 URL 不可访问（需公开 `http/https` 图片地址）
+已退役：fal / laozhang、自有 provider SDK / skill 专用 key 安装、旧 sender、`channel` / `target` / `--save-dir` / `count`、生成图片备份和素材库管理。旧 `Provider=gemini` 兼容，其他值须移除或迁移。重复请求会发起新生成。
 
-## 媒体文件处理（Gemini / laozhang）
-
-当 `Provider=gemini` 或 `Provider=laozhang` 时，生成图片会写入：
-
-- `~/.openclaw/workspace/stella-selfie/`
-
-每张图片发送成功后，Stella 会立即删除该本地文件。
-
-- 若发送失败，文件会保留用于排障。
-- 若删除失败，Stella 仅记录 warning 并继续流程。
-
-## 安全说明
-
-- Stella 会读取 `~/.openclaw/workspace/IDENTITY.md` 与 `~/.openclaw/workspace/avatars/` 下的本地参考资料。
-- 生成图片写入 `~/.openclaw/workspace/stella-selfie/`，仅在发送成功后删除。
-- 发送链路只使用 `openclaw message send`。
-
-## 直接脚本测试（不走 OpenClaw）
-
-如果你想直接运行脚本测试（不通过 OpenClaw），需要自己提供环境变量（因为 OpenClaw 平时会在运行时注入）。
-
-```bash
-# 安装依赖
-npm install
-
-# 构建运行产物
+```sh
+npm ci
 npm run build
-
-# 直接运行 skill 主入口
-node dist/scripts/skill.js --prompt "test prompt" --target "@user" --channel "telegram"
-
-# Smoke 测试：真实调用 API，并把图片保存到 ./out
-npm run smoke
-```
-
-> **注意**：项目根目录的 `.env.local` 仅用于本地开发/脚本测试。作为 OpenClaw skill 运行时，建议通过 `~/.openclaw/openclaw.json`（或进程环境变量）提供密钥，OpenClaw 会在每次 agent run 期间注入。
-
-## 单元测试
-
-```bash
 npm test
+npm run smoke -- --agent main
+npm run sync:local -- --agent main
+# 也可明确指定安装作用域：
+npm run sync:local -- --skills-dir /absolute/path/to/skills
+npm run release:clawhub -- --prepare-only
 ```
 
-项目包含多组单元测试，覆盖 identity parser、avatar selector、Gemini provider、fal provider、sender、skill runtime 等模块；全部使用 mock，不会触发真实 API 调用。
+smoke 只准备并清理三种模式的参考图，不调用生图、不产生生图费用。本地同步只复制运行白名单、保留用户文件，不依赖 WSL 或运行时 npm 安装，也不覆盖人格文件。找不到 CLI 时，可设置 `OPENCLAW_CLI_PATH` 指向已安装的 `openclaw.mjs`。
 
-```bash
-npm run test:watch   # 监听模式
-```
+暂存包只包含运行文件并生成 SHA256 清单，准备包不代表发布。设计与验证边界见 [设计文档](docs/google-native-design.md)、[验证记录](docs/native-verification.md)。
 
-## 项目结构
-
-```
-Stella/
-├── SKILL.md                  # ClawHub skill 定义
-├── scripts/
-│   ├── skill.ts              # Skill 主入口
-│   ├── identity.ts           # IDENTITY.md 解析
-│   ├── avatars.ts            # 参考图选择
-│   ├── smoke.ts              # 本地 smoke 脚本入口
-│   ├── release-clawhub.mjs    # 发布到 ClawHub 脚本
-│   ├── sender.ts             # OpenClaw 发送
-│   └── providers/
-│       ├── gemini.ts         # Gemini provider
-│       ├── fal.ts            # fal.ai provider
-│       └── laozhang.ts       # laozhang.ai provider
-├── tests/                    # 单元测试（vitest）
-│   └── providers/            # Provider 单测
-├── smoke/
-│   └── avatars/              # Smoke 测试用参考图片
-└── references/
-    └── timeline-integration.md   # 可选 timeline 增强规则
-```
+官方依据：[原生图片生成](https://docs.openclaw.ai/tools/image-generation)、[plugin runtime](https://docs.openclaw.ai/plugins/sdk-runtime/media#api-runtime-imagegeneration)、[skills 配置](https://docs.openclaw.ai/tools/skills-config)。

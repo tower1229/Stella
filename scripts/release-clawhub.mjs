@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareSkillBundle } from "./skill-bundle.mjs";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -16,11 +17,13 @@ function quoteWin(arg) {
 function usage(exitCode = 0) {
   const msg = `
 Usage:
-  node ./scripts/release-clawhub.mjs [--changelog "..."] [--tag latest] [--skip-test]
+  node ./scripts/release-clawhub.mjs [--changelog "..."] [--tag latest] [--skip-test] [--prepare-only]
 
 Behavior:
   - Reads version from package.json
   - Runs unit tests (npm test) unless --skip-test
+  - Builds and stages an explicit runtime-only bundle with a SHA-256 manifest
+  - --prepare-only stops after staging, without contacting ClawHub
   - If --changelog is not provided, generates one from git history
   - Publishes this repo as a ClawHub skill using:
       slug: stella-selfie
@@ -29,13 +32,12 @@ Behavior:
 Requirements:
   - clawhub CLI installed and logged in (or available via npx)
 `.trim();
-  // eslint-disable-next-line no-console
   console.log(msg);
   process.exit(exitCode);
 }
 
 function parseArgs(argv) {
-  const out = { changelog: "", tag: "latest", skipTest: false };
+  const out = { changelog: "", tag: "latest", skipTest: false, prepareOnly: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--changelog") {
@@ -44,10 +46,11 @@ function parseArgs(argv) {
       out.tag = argv[++i] ?? "latest";
     } else if (a === "--skip-test") {
       out.skipTest = true;
+    } else if (a === "--prepare-only") {
+      out.prepareOnly = true;
     } else if (a === "-h" || a === "--help") {
       usage(0);
     } else {
-      // eslint-disable-next-line no-console
       console.error(`Unknown argument: ${a}`);
       usage(2);
     }
@@ -55,51 +58,34 @@ function parseArgs(argv) {
   return out;
 }
 
-function run(cmd, args, opts = {}) {
+function command(cmd, args, opts = {}) {
   const isWin = process.platform === "win32";
-  const r = isWin
-    ? spawnSync([cmd, ...args].map(quoteWin).join(" "), {
-        stdio: "inherit",
-        cwd: ROOT_DIR,
-        shell: true,
-        ...opts,
-      })
-    : spawnSync(cmd, args, {
-        stdio: "inherit",
-        cwd: ROOT_DIR,
-        shell: false,
-        ...opts,
-      });
+  return spawnSync(isWin ? [cmd, ...args].map(quoteWin).join(" ") : cmd, isWin ? [] : args, {
+    cwd: ROOT_DIR, shell: isWin, ...opts,
+  });
+}
+
+function run(cmd, args) {
+  const r = command(cmd, args, { stdio: "inherit" });
   if (r.error) throw r.error;
-  if (typeof r.status === "number" && r.status !== 0) process.exit(r.status);
+  if (r.status !== 0) process.exit(r.status || 1);
 }
 
 function canRun(cmd) {
-  const isWin = process.platform === "win32";
-  const r = isWin
-    ? spawnSync(`${cmd} --help`, { stdio: "ignore", cwd: ROOT_DIR, shell: true })
-    : spawnSync(cmd, ["--help"], { stdio: "ignore", cwd: ROOT_DIR, shell: false });
+  const r = command(cmd, ["--help"], { stdio: "ignore" });
   return !r.error && r.status === 0;
 }
 
 function runCapture(cmd, args) {
-  const isWin = process.platform === "win32";
-  const r = isWin
-    ? spawnSync([cmd, ...args].map(quoteWin).join(" "), {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        cwd: ROOT_DIR,
-        shell: true,
-      })
-    : spawnSync(cmd, args, {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        cwd: ROOT_DIR,
-        shell: false,
-      });
+  const r = command(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (r.error) return { ok: false, stdout: "", stderr: String(r.error) };
   if (r.status !== 0) return { ok: false, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
   return { ok: true, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+}
+
+function commitSubjects(args) {
+  const result = runCapture("git", ["log", ...args, "--pretty=format:%s"]);
+  return result.ok ? result.stdout.split("\n").map(s => s.trim()).filter(Boolean) : [];
 }
 
 function generateChangelog(version) {
@@ -109,71 +95,62 @@ function generateChangelog(version) {
   const lastTag = runCapture("git", ["describe", "--tags", "--abbrev=0"]);
   if (lastTag.ok) {
     const tag = lastTag.stdout.trim();
-    const commits = runCapture("git", ["log", `${tag}..HEAD`, "--pretty=format:%s"]);
-    const lines = commits.ok
-      ? commits.stdout
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
+    const lines = commitSubjects([`${tag}..HEAD`]);
     if (lines.length > 0) return `v${version}\n\n- ${lines.join("\n- ")}`;
   }
 
-  const recent = runCapture("git", ["log", "-n", "20", "--pretty=format:%s"]);
-  const lines = recent.ok
-    ? recent.stdout
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
+  const lines = commitSubjects(["-n", "20"]);
   if (lines.length > 0) return `v${version}\n\n- ${lines.join("\n- ")}`;
   return `Release v${version}`;
 }
 
-const { changelog: changelogArg, tag, skipTest } = parseArgs(process.argv.slice(2));
+const { changelog: changelogArg, tag, skipTest, prepareOnly } = parseArgs(process.argv.slice(2));
 
 const pkgPath = path.join(ROOT_DIR, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 const version = pkg?.version;
 if (!version) {
-  // eslint-disable-next-line no-console
   console.error("Failed to read version from package.json");
   process.exit(1);
 }
 
-// eslint-disable-next-line no-console
 console.log(`[release] Version: ${version}`);
 
 const changelog = changelogArg || generateChangelog(version);
-// eslint-disable-next-line no-console
 console.log(`[release] Changelog:\n${changelog}\n`);
 
 if (!skipTest) {
-  // eslint-disable-next-line no-console
   console.log("[release] Running unit tests...");
   run("npm", ["test"]);
 }
 
-// eslint-disable-next-line no-console
 console.log("[release] Building dist artifacts...");
 run("npm", ["run", "build"]);
 const distEntrypoint = path.join(ROOT_DIR, "dist", "scripts", "skill.js");
 if (!fs.existsSync(distEntrypoint)) {
-  // eslint-disable-next-line no-console
   console.error(`[release] Build succeeded but runtime entrypoint is missing: ${distEntrypoint}`);
   process.exit(1);
 }
 
-// eslint-disable-next-line no-console
+const bundle = prepareSkillBundle(ROOT_DIR, path.join(ROOT_DIR, "out", "clawhub-candidates"));
+console.log(`[release] Bundle: ${bundle.bundlePath}`);
+console.log(`[release] Manifest: ${bundle.manifestPath}`);
+console.log(`[release] Fingerprint: ${bundle.fingerprint}`);
+if (prepareOnly) {
+  console.log("[release] Prepared locally. No upload or security scan was requested.");
+  process.exit(0);
+}
+
 console.log("[release] Publishing to ClawHub...");
 
 // Pin workdir to this repo root. clawhub resolves workdir to OpenClaw/Clawdbot default workspace when cwd
-// has no .clawhub marker; then `publish .` runs against the wrong folder and fails with "SKILL.md required".
+// has no .clawhub marker. Pass the staged absolute path to the documented skill publish command.
 const publishArgs = [
   "--workdir",
   ROOT_DIR,
+  "skill",
   "publish",
-  ".",
+  bundle.bundlePath,
   "--slug",
   "stella-selfie",
   "--name",
@@ -183,7 +160,7 @@ const publishArgs = [
   "--tags",
   String(tag),
   "--changelog",
-  String(changelog).replace(/\r?\n/g, "\\n"),
+  String(changelog),
 ];
 
 if (canRun("clawhub")) {
@@ -191,7 +168,6 @@ if (canRun("clawhub")) {
 } else {
   const major = Number(String(process.versions.node).split(".")[0] || "0");
   if (major < 20) {
-    // eslint-disable-next-line no-console
     console.error(
       "[release] clawhub CLI not found on PATH.\n" +
         "[release] Automatic fallback via npx requires Node.js >= 20 (your Node is " +
@@ -208,6 +184,5 @@ if (canRun("clawhub")) {
   run("npx", ["-y", "clawhub", ...publishArgs]);
 }
 
-// eslint-disable-next-line no-console
-console.log("[release] Done.");
+console.log("[release] Upload command completed. Verify normal checks, exact-version public availability and downloaded hashes before declaring publication complete.");
 

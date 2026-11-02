@@ -1,14 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 
 export interface IdentityConfig {
   avatar: string | null;
   avatarsDir: string | null;
-  avatarsURLs: string[];
 }
-
-const DEFAULT_WORKSPACE = path.join(os.homedir(), ".openclaw", "workspace");
 
 /**
  * Resolve a path from IDENTITY.md relative to the workspace root.
@@ -42,7 +38,7 @@ function parseLine(line: string): [string, string] | null {
  * Returns resolved absolute paths for Avatar and AvatarsDir.
  */
 export function parseIdentity(
-  workspaceRoot: string = DEFAULT_WORKSPACE
+  workspaceRoot: string
 ): IdentityConfig {
   const identityPath = path.join(workspaceRoot, "IDENTITY.md");
 
@@ -55,7 +51,6 @@ export function parseIdentity(
 
   let avatar: string | null = null;
   let avatarsDir: string | null = null;
-  let avatarsURLsRaw: string[] = [];
 
   for (const line of lines) {
     const parsed = parseLine(line.trim());
@@ -67,13 +62,8 @@ export function parseIdentity(
       avatar = resolvePath(value, workspaceRoot);
     } else if (key === "AvatarsDir") {
       avatarsDir = resolvePath(value, workspaceRoot);
-    } else if (key === "AvatarsURLs") {
-      avatarsURLsRaw = value
-        .split(",")
-        .map((u) => u.trim())
-        .filter((u) => u.startsWith("http://") || u.startsWith("https://"));
     }
   }
 
-  return { avatar, avatarsDir, avatarsURLs: avatarsURLsRaw };
+  return { avatar, avatarsDir };
 }
