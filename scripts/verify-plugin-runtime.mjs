@@ -1,6 +1,6 @@
 // Offline compatibility probe against an installed OpenClaw's public image runtime export.
 // It injects a local provider fixture: no network, credentials, real photos, or paid generation.
-// Usage: node scripts/verify-bili-runtime.mjs <absolute OpenClaw package directory> [Stella bundle directory]
+// Usage: node scripts/verify-plugin-runtime.mjs <absolute OpenClaw package directory> [Stella bundle directory]
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,7 +14,7 @@ const requireHost = createRequire(path.join(packageDir, "package.json"));
 const { generateImage } = await import(pathToFileURL(requireHost.resolve("openclaw/plugin-sdk/image-generation-runtime")).href);
 const require = createRequire(import.meta.url);
 const stellaDir = process.argv[3] ?? fileURLToPath(new URL("..", import.meta.url));
-const { generateForBili } = require(path.join(stellaDir, "dist/scripts/bili.js"));
+const { generateForPlugin } = require(path.join(stellaDir, "dist/scripts/plugin.js"));
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-native-memory-"));
 try {
@@ -38,7 +38,7 @@ try {
       return { images: [{ buffer: png, mimeType: "image/png" }], model: request.model };
     },
   };
-  const result = await generateForBili({
+  const result = await generateForPlugin({
     config: {},
     runtime: {
       agent: { resolveAgentWorkspaceDir: () => root, resolveAgentDir: () => path.join(root, "auth") },

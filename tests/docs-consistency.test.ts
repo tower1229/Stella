@@ -71,16 +71,27 @@ describe("selfie/timeline documentation contract", () => {
     expect(smoke).toContain("A natural third-person photo of this person");
     expect(smoke).not.toContain("A travel photo of this person");
   });
-  it("documents native chat reference optimization separately from direct bili buffers", () => {
+  it("documents native chat reference optimization separately from direct plugin buffers", () => {
     const skill = readRepoFile("SKILL.md");
     const readme = readRepoFile("README.md");
     const readmeCn = readRepoFile("README_CN.md");
-    const bili = readRepoFile("references", "bili-integration.md");
-    for (const doc of [skill, readme, bili]) expect(doc).toContain("native image tool may resize or re-encode");
+    const plugin = readRepoFile("references", "plugin-integration.md");
+    for (const doc of [skill, readme, plugin]) expect(doc).toContain("native image tool may resize or re-encode");
     expect(skill).not.toContain("File checks and uploads use the same validated bytes.");
     expect(skill).toContain("Original-byte upload is not guaranteed.");
     expect(readme).toContain("Original-byte upload is not guaranteed.");
     expect(readmeCn).toContain("不保证原始字节上传");
-    expect(bili).toContain("does not invoke that chat-tool optimization");
+    expect(plugin).toContain("does not invoke that chat-tool optimization");
+  });
+
+  it("keeps the public runtime entry generic", () => {
+    const skill = readRepoFile("SKILL.md");
+    const plugin = readRepoFile("references", "plugin-integration.md");
+    for (const doc of [skill, plugin]) {
+      expect(doc).not.toContain("bili.js");
+      expect(doc).not.toContain("generateForBili");
+    }
+    expect(skill).toContain("dist/scripts/plugin.js");
+    expect(plugin).toContain("generateForPlugin");
   });
 });

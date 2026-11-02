@@ -183,3 +183,35 @@
 - 一次性探针 `/tmp/stella-bili-live-once.mjs`、`/tmp/stella-dashboard-url.txt` 已删。安装目录与备份保留。原始证据在 git 忽略的 `out/acceptance-2.0.0-darwin/`。
 - **结果：Darwin 测试全绿；2.0.0 已装到 main；无生图协议通过；Web 聊天一次 Google 2K 生图成功；bili 内存接口一次真实 generate 因 fake-IP 被宿主拦截。未 commit、未 push、未发布。**
 
+## listProviders `{ config }` 修正后再验收（2026-11-02）
+
+宿主公开类型 `RuntimeProviderListParams` 与 2026.10.8/10.9 实现均读取 `params.config`；`generate` 仍用 `cfg`。`7013596` 曾把 Stella 的 `listProviders` 改成 `{ cfg }` 以跟随 media.md 示例。现已改回 `{ config: api.config }`，测试同步断言。`npm test` 109 通过，`npm run build` 通过；`sync:local --agent main` 指纹 `0a3c7394352748afb48b598c7753e0507954c2df8192ff8b250a16b1f810fe35`。
+
+### Web 聊天
+
+- 新独立会话 `6cae414dc325416eadb222749212aef2`。一次 `image_generate`（`7a79e2eb-...:ok`）。JPEG 2,276,611 字节，1686×2528，SHA256 `96fd6efed56f9b6e19fb61eaf046451651c3cd4c62b29efe949f34651f28f8f5`。Agent 自行 release，`.references` 为空。无二次生图、无跨渠道。
+
+### bili
+
+- 已安装 `generateForBili` 传 `{ config }` 后，`listProviders` 返回过滤名单 google/minimax/minimax-portal/openai，`googleViaConfig=true`，随后派出 `google/gemini-3-pro-image`。
+- 仍被宿主 SSRF 拦截：`generativelanguage.googleapis.com` → `198.18.0.214`。适配器返回 `PERMISSION_DENIED` / stage `generate` / outcome `unknown`。无 Buffer、无 material。未重试、未改代理。
+- 该字段修正已由校验阶段证实；真实 Google 到达仍受 fake-IP 限制。
+
+一次性探针 `/tmp/stella-bili-live-config-fix.mjs` 已删。未 commit、未发布。
+
+## Clash fake-IP 排除后再验收 bili（2026-11-02）
+
+用户确认后仅在 Clash `fake-ip-filter` 追加 `generativelanguage.googleapis.com`，重载 Mihomo 并清缓存。解析从 `198.18.0.214` 变为 `172.217.113.4` 等公网地址。未关 OpenClaw SSRF，未改 TUN / fake-ip 模式。
+
+- 已安装 `generateForBili` 再跑一次：`ok=true`，JPEG 2,057,148 字节，1686×2528，SHA256 `9c2723251f19532700d593b36640c3102230dca276c77acaa959257071f9b758`。DNS `fakeIp=false`。无 material、无自动聊天交付。约 26 秒完成。
+- 证据：`out/acceptance-2.0.0-darwin/bili-live-dns-retry.json`（git 忽略）。未把图片写入仓库。
+- Web 聊天上一轮已通过，本轮不再付费重跑。
+
+一次性探针 `/tmp/stella-bili-live-dns-retry.mjs` 已删。未 commit、未发布。
+
+**结果：Darwin 本机 2.0.0 安装验收可通过。** 测试/安装/无生图协议、Web 一次 Google 2K、bili 内存接口一次 Google 2K 均已成功。
+
+## 公开入口改名为 generateForPlugin（2026-11-02）
+
+公开同宿主内存接口已硬切改名为 `generateForPlugin` / `dist/scripts/plugin.js` / `references/plugin-integration.md`。请求字段、默认 Agent `main`、默认 2K、单图、调用方持有 Buffer、不落盘、不重试均未改。不保留 `generateForBili`、`bili.js` 或类型别名。上文各节的 bili 探针文件名、已安装 `bili.js` 路径和历史 SHA 仍是当时的证据，不改写。本机已装副本需之后 `sync:local` 才能对上新入口。未进行新的付费生图。
+

@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateForBili, type BiliImageRequest, type NativeImageResult, type StellaHost } from "../scripts/bili";
+import { generateForPlugin, type ImageRequest, type NativeImageResult, type StellaHost } from "../scripts/plugin";
 import * as images from "../scripts/images";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
@@ -11,23 +11,23 @@ const provider = { id: "google", models: ["gemini-3-pro-image", "gemini-3.1-flas
   geometry: { aspectRatios: ["1:1", "3:4"], resolutions: ["1K", "2K", "4K"] },
 } };
 
-describe("bili native in-memory integration", () => {
+describe("plugin native in-memory integration", () => {
   let root: string;
   let workspace: string;
   let config: Record<string, unknown>;
   let host: StellaHost<Record<string, unknown>>;
   let generate: ReturnType<typeof vi.fn<StellaHost<Record<string, unknown>>["runtime"]["imageGeneration"]["generate"]>>;
   let warnings: string[];
-  const request: BiliImageRequest = { schemaVersion: 1, prompt: 'A selfie of this person, 中文 "quote" & literal $text.\nLooking into the lens.' };
+  const request: ImageRequest = { schemaVersion: 1, prompt: 'A selfie of this person, 中文 "quote" & literal $text.\nLooking into the lens.' };
   const listAgentIds = () => ["main", "stella"];
-  function call(r: BiliImageRequest = request) {
-    return generateForBili(host, { listAgentIds, onWarning: m => warnings.push(m) }, r);
+  function call(r: ImageRequest = request) {
+    return generateForPlugin(host, { listAgentIds, onWarning: m => warnings.push(m) }, r);
   }
   function options(value: Record<string, unknown>) {
     config.skills = { entries: { "stella-selfie": { config: value } } };
   }
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-bili-"));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-plugin-"));
     workspace = path.join(root, "persona workspace");
     fs.mkdirSync(path.join(workspace, "assets"), { recursive: true });
     fs.writeFileSync(path.join(workspace, "assets", "main.png"), png);
@@ -64,7 +64,7 @@ describe("bili native in-memory integration", () => {
     expect(params.inputImages).toEqual([{ buffer: png, mimeType: "image/png" }]);
     expect(params).not.toHaveProperty("aspectRatio");
     expect(params).not.toHaveProperty("size");
-    expect(host.runtime.imageGeneration.listProviders).toHaveBeenCalledWith({ cfg: config });
+    expect(host.runtime.imageGeneration.listProviders).toHaveBeenCalledWith({ config });
   });
   it("uses the bound Agent for both workspace and auth and passes explicit image hints", async () => {
     expect(await call({ ...request, agentId: "stella", resolution: "4K", aspectRatio: "3:4" })).toMatchObject({ ok: true, agentId: "stella" });
@@ -72,7 +72,7 @@ describe("bili native in-memory integration", () => {
     expect(generate.mock.calls[0][0]).toMatchObject({ agentDir: path.join(root, "auth", "stella"), resolution: "4K", aspectRatio: "3:4" });
   });
   it("fails if main is not configured; it does not select the sole other Agent", async () => {
-    const missing = await generateForBili(host, { listAgentIds: () => ["stella"] }, request);
+    const missing = await generateForPlugin(host, { listAgentIds: () => ["stella"] }, request);
     expect(missing).toMatchObject({ ok: false, error: { code: "AGENT_NOT_FOUND", generationOutcome: "not_started" } });
     if (missing.ok) throw new Error("Expected failure");
     expect(missing.error.actionHint).not.toMatch(/Google|网络|network/i);
@@ -81,7 +81,7 @@ describe("bili native in-memory integration", () => {
   });
   it.each([{ count: 2 }, { target: "elsewhere" }, { saveDir: "anywhere" }, { description: true }, { schemaVersion: 2 }, { resolution: "8K" }, { aspectRatio: "0:0" }])(
     "rejects unsupported request fields and hints before generation: %j", async extra => {
-      const result = await call({ ...request, ...extra } as BiliImageRequest);
+      const result = await call({ ...request, ...extra } as ImageRequest);
       expect(result).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
       if (result.ok) throw new Error("Expected failure");
       expect(result.error.actionHint).not.toMatch(/Google|网络|network/i);
@@ -189,7 +189,7 @@ describe("bili native in-memory integration", () => {
       imageGeneration: { listProviders: () => [provider], generate: otherGenerate },
     } };
     const [first, second] = await Promise.all([
-      call(), generateForBili(otherHost, { listAgentIds: () => ["other"] }, { ...request, agentId: "other" }),
+      call(), generateForPlugin(otherHost, { listAgentIds: () => ["other"] }, { ...request, agentId: "other" }),
     ]);
     expect(first).toMatchObject({ ok: true, agentId: "main" });
     expect(second).toMatchObject({ ok: true, agentId: "other" });

@@ -44,7 +44,7 @@ export interface StellaHost<C> {
       resolveAgentDir(cfg: C, agentId: string): string;
     };
     imageGeneration: {
-      listProviders(params?: { cfg?: C }): readonly ImageProvider[];
+      listProviders(params?: { config?: C }): readonly ImageProvider[];
       generate(params: NativeGenerateParams<C>): Promise<NativeImageResult>;
     };
   };
@@ -56,14 +56,14 @@ export interface ImagePreparationHost<C> {
     imageGeneration: Pick<StellaHost<C>["runtime"]["imageGeneration"], "listProviders">;
   };
 }
-export interface BiliImageRequest {
+export interface ImageRequest {
   schemaVersion: 1;
   agentId?: string;
   prompt: string;
   resolution?: Resolution;
   aspectRatio?: string;
 }
-export type BiliImageResult = {
+export type ImageResult = {
   schemaVersion: 1;
   ok: true;
   agentId: string;
@@ -80,7 +80,7 @@ export type BiliImageResult = {
     generationOutcome: "not_started" | "succeeded" | "unknown";
   };
 };
-export interface BiliIntegration<C> {
+export interface PluginIntegration<C> {
   // Use listAgentIds from openclaw/plugin-sdk/agent-scope-runtime.
   listAgentIds(cfg: C): readonly string[];
   onWarning?: (message: string) => void;
@@ -93,7 +93,7 @@ function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown> : {};
 }
-function validateRequest(value: unknown): BiliImageRequest {
+function validateRequest(value: unknown): ImageRequest {
   const r = object(value);
   const allowed = ["schemaVersion", "agentId", "prompt", "resolution", "aspectRatio"];
   if (Object.keys(r).some(key => !allowed.includes(key)) || r.schemaVersion !== 1 ||
@@ -103,7 +103,7 @@ function validateRequest(value: unknown): BiliImageRequest {
       (r.aspectRatio !== undefined && (typeof r.aspectRatio !== "string" || !/^\d+:\d+$/.test(r.aspectRatio)))) {
     throw new InputError("INPUT_INVALID", "Use a v1 single-image request with prompt, optional agentId, resolution and aspectRatio.");
   }
-  return r as unknown as BiliImageRequest;
+  return r as unknown as ImageRequest;
 }
 function settings(config: unknown, workspace: string) {
   const cfg = object(config);
@@ -151,7 +151,7 @@ function settings(config: unknown, workspace: string) {
 
 /** Shared validated inputs for native chat tools and in-process plugin calls. */
 export function prepareImageRequest<C>(
-  api: ImagePreparationHost<C>, integration: BiliIntegration<C>, value: BiliImageRequest,
+  api: ImagePreparationHost<C>, integration: PluginIntegration<C>, value: ImageRequest,
   onReference: () => void = () => {},
 ) {
     const request = validateRequest(value);
@@ -163,7 +163,7 @@ export function prepareImageRequest<C>(
     try { workspace = fs.realpathSync(api.runtime.agent.resolveAgentWorkspaceDir(api.config, agentId)); }
     catch { throw new InputError("IDENTITY_UNREADABLE", "The bound Agent workspace is unavailable."); }
     const config = settings(api.config, workspace);
-    const provider = api.runtime.imageGeneration.listProviders({ cfg: api.config }).find(p => p.id === "google");
+    const provider = api.runtime.imageGeneration.listProviders({ config: api.config }).find(p => p.id === "google");
     if (!provider?.capabilities.edit.enabled || !provider.models?.includes(config.model.slice("google/".length)) ||
         (provider.capabilities.edit.maxInputImages !== undefined && config.max > provider.capabilities.edit.maxInputImages)) {
       throw new InputError("CONFIG_INVALID", "The selected Google model or reference count is unsupported by this host.");
@@ -197,9 +197,9 @@ export function prepareImageRequest<C>(
 }
 
 /** Generate one in-memory persona image. The caller owns preview, persistence and publishing. */
-export async function generateForBili<C>(
-  api: StellaHost<C>, integration: BiliIntegration<C>, value: BiliImageRequest,
-): Promise<BiliImageResult> {
+export async function generateForPlugin<C>(
+  api: StellaHost<C>, integration: PluginIntegration<C>, value: ImageRequest,
+): Promise<ImageResult> {
   let stage: "validate" | "reference" | "generate" = "validate";
   let generationOutcome: "not_started" | "succeeded" | "unknown" = "not_started";
   try {

@@ -1,4 +1,4 @@
-import { InputError } from "./bili";
+import { InputError } from "./plugin";
 import { prepareChat, readChatState, releaseReferences } from "./chat";
 import { localActionHint, normalizeNativeError } from "./errors";
 

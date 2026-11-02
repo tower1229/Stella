@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { AGENT_ID, InputError } from "./bili";
+import { AGENT_ID, InputError } from "./plugin";
 import { prepareChat, readChatState, releaseReferences, type ChatRequest } from "./chat";
 import { readAgentLocations } from "./native-cli";
 import { localActionHint, normalizeNativeError } from "./errors";

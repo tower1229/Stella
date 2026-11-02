@@ -1,6 +1,6 @@
 ---
 name: stella-selfie
-description: Generate persona-consistent selfies and third-person photos with OpenClaw's native Google image generation; deliver to the current conversation or return image bytes to a same-host bili plugin.
+description: Generate persona-consistent selfies and third-person photos with OpenClaw's native Google image generation; deliver to the current conversation or return image bytes to a same-host plugin.
 metadata:
   openclaw:
     requires:
@@ -15,7 +15,7 @@ metadata:
 
 Use when asked for a picture of the assistant: "send a pic", "send a selfie", "show me what you look like", "发张照片", "发自拍", or an outfit, location, mood or activity photo. Keep the photographed subject the assistant/selected persona, never the human user.
 
-For same-host bili plugin requests, use `{baseDir}/references/bili-integration.md` and the module `{baseDir}/dist/scripts/bili.js`. It returns one image buffer to the plugin, with no Stella backup or separate chat delivery. The plugin owns preview, any persistence and publishing.
+For same-host plugin requests, use `{baseDir}/references/plugin-integration.md` and the module `{baseDir}/dist/scripts/plugin.js`. It returns one image buffer to the plugin, with no Stella backup or separate chat delivery. The plugin owns preview, any persistence and publishing.
 
 ## Prompt Modes
 
@@ -165,7 +165,7 @@ Optional AvatarAllowedRoots is a nonempty array of absolute directories replacin
 
 References must be regular JPEG/PNG/WebP files, each at most 20 MiB, with valid signatures. Default allowed roots are assets/avatars inside the actual Agent workspace; outward symlinks/junctions are not implicitly authorized. Main Avatar is preferred, realpath duplicates removed, extras selected newest first (birthtime, then mtime/ctime fallback); default maximum three, current native Google maximum five. Blend disabled means main only.
 
-For chat, input snapshots preserve the validated bytes, but the native image tool may resize or re-encode them before upload, changing format, dimensions or fine detail. Original-byte upload is not guaranteed. The 20 MiB Stella input limit is separate from the host's media limits and optimization; requesting 4K output does not preserve reference resolution. The bili adapter passes validated buffers directly to the native runtime without this chat-tool optimization.
+For chat, input snapshots preserve the validated bytes, but the native image tool may resize or re-encode them before upload, changing format, dimensions or fine detail. Original-byte upload is not guaranteed. The 20 MiB Stella input limit is separate from the host's media limits and optimization; requesting 4K output does not preserve reference resolution. The in-process plugin path passes validated buffers directly to the native runtime without this chat-tool optimization.
 
 The prompt and selected reference bytes go to Google's official API through OpenClaw. Generated media storage, retention and current-conversation delivery belong to the host. Stella creates no generated-image archive and does not delete host attachments or historical user files. It does not promise attachment availability forever.
 

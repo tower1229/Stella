@@ -5,7 +5,7 @@ import { fork } from "node:child_process";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseProviderInventory, prepareChat, releaseReferences, type ChatState } from "../scripts/chat";
-import { InputError } from "../scripts/bili";
+import { InputError } from "../scripts/plugin";
 import { runSkill } from "../scripts/skill";
 // Mutable export facade for fault injection; ordinary operations still use the real filesystem.
 vi.mock("node:fs", async importOriginal => ({ ...await importOriginal<typeof import("node:fs")>() }));

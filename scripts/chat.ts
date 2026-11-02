@@ -1,11 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { InputError, prepareImageRequest, type BiliImageRequest, type ImagePreparationHost, type ImageProvider } from "./bili";
+import { InputError, prepareImageRequest, type ImageRequest, type ImagePreparationHost, type ImageProvider } from "./plugin";
 import { inspectImage, isPathInside } from "./images";
 import { MissingConfigPathError, readAgentLocations, runOpenClawJson, type AgentLocation } from "./native-cli";
 
-export interface ChatRequest extends BiliImageRequest { agentId: string; caption?: string }
+export interface ChatRequest extends ImageRequest { agentId: string; caption?: string }
 export interface ChatState { agents: AgentLocation[]; skills: unknown; providers: ImageProvider[] }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -2,7 +2,7 @@
 
 [简体中文](README_CN.md)
 
-Persona-consistent photos for OpenClaw through Google's official native image provider. Ordinary requests deliver one attachment to the current conversation. A same-host bili plugin receives one image Buffer through the official runtime and owns preview, storage and publishing.
+Persona-consistent photos for OpenClaw through Google's official native image provider. Ordinary requests deliver one attachment to the current conversation. A same-host plugin receives one image Buffer through the official runtime and owns preview, storage and publishing.
 
 Stella keeps mirror, direct selfie and third-person photo modes, optional timeline continuity, explicit captions, 1K/2K/4K and multiple local references. Default: google/gemini-3-pro-image, 2K, one image, no aspect ratio. Stella creates no generated-image backup, including explicitly requested extra copies.
 
@@ -45,7 +45,7 @@ Optional AvatarAllowedRoots is a nonempty absolute-directory array **replacing**
 
 AvatarBlendEnabled/AvatarMaxRefs/AvatarAllowedRoots retain legacy support: config → process env → skill env → defaults. Blend disabled uses only the main Avatar. Main first, realpath deduplication, extras newest first (birthtime, then mtime/ctime), default max three, current Google max five. References must be regular JPEG/PNG/WebP files with valid signatures, at most 20 MiB each.
 
-Chat snapshots preserve the validated input, but the native image tool may resize or re-encode references before upload, changing dimensions, format and fine detail. Original-byte upload is not guaranteed. Host media limits and optimization are separate from Stella's 20 MiB validation and the requested output resolution. The bili adapter passes validated buffers directly to the runtime without chat-tool optimization.
+Chat snapshots preserve the validated input, but the native image tool may resize or re-encode references before upload, changing dimensions, format and fine detail. Original-byte upload is not guaranteed. Host media limits and optimization are separate from Stella's 20 MiB validation and the requested output resolution. The in-process plugin path passes validated buffers directly to the runtime without chat-tool optimization.
 
 ## Use
 
@@ -58,9 +58,9 @@ Timeline is optional and best-effort. Only Sparse current-state requests or clea
 
 The helper validates references and supplies native image_generate arguments. The host generates asynchronously and delivers to the requesting conversation. Input snapshots are released in the initiating turn after the tool reads them. Failed preparation cleans up files it created, including partial writes; incomplete cleanup reports the directory for explicit cleanup. No polling, second send, cross-channel target, batch or Stella retry. Host attachments follow host retention, with no Stella promise of permanent availability.
 
-## bili integration
+## Same-host plugin
 
-Follow [the in-process adapter guide](references/bili-integration.md). Bind stellaAgentId in bili configuration; absent means exactly main, missing bindings fail. The adapter resolves the actual Agent identity/workspace/auth directory, calls api.runtime.imageGeneration.generate once, and returns Buffer + MIME or a safe error with generation outcome. It creates no material ID, path, content description or persistent file.
+Follow [the in-process adapter guide](references/plugin-integration.md). Bind an optional agentId in the calling plugin's Stella configuration; absent means exactly main, missing bindings fail. The adapter resolves the actual Agent identity/workspace/auth directory, calls api.runtime.imageGeneration.generate once, and returns Buffer + MIME or a safe error with generation outcome. It creates no material ID, path, content description or persistent file.
 
 ## Migration and development
 
@@ -79,6 +79,6 @@ npm run release:clawhub -- --prepare-only
 
 Smoke only prepares/releases references for three modes; it does not generate images or incur generation charges. Sync copies the runtime allowlist and retains user files, without WSL or runtime npm installation. Persona files are not synchronized. If CLI discovery fails, set OPENCLAW_CLI_PATH to the installed openclaw.mjs.
 
-Release staging includes runtime files and a SHA256 manifest; preparing does not publish. See [design](docs/google-native-design.md) and [verification](docs/native-verification.md) for scope. The consuming bili plugin is outside this repository.
+Release staging includes runtime files and a SHA256 manifest; preparing does not publish. See [design](docs/google-native-design.md) and [verification](docs/native-verification.md) for scope. Calling plugins are outside this repository.
 
 Official references: [image generation](https://docs.openclaw.ai/tools/image-generation), [plugin runtime](https://docs.openclaw.ai/plugins/sdk-runtime/media#api-runtime-imagegeneration), [skills config](https://docs.openclaw.ai/tools/skills-config).

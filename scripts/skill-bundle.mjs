@@ -7,10 +7,10 @@ export const RUNTIME_FILES = [
   "SKILL.md",
   "package.json",
   "references/timeline-integration.md",
-  "references/bili-integration.md",
+  "references/plugin-integration.md",
   "templates/SOUL.fragment.md",
   ...[
-    "avatars", "bili", "chat", "errors", "identity", "images", "native-cli", "skill",
+    "avatars", "chat", "errors", "identity", "images", "native-cli", "plugin", "skill",
   ].map((name) => `dist/scripts/${name}.js`),
 ];
 
