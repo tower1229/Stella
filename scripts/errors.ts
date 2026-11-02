@@ -1,13 +1,13 @@
 const LOCAL_ACTION_HINTS = {
   INPUT_INVALID: "请检查请求字段、分辨率和画幅。",
-  CONFIG_INVALID: "请检查 Stella 的 Google 模型、参考图数量及授权目录配置。",
+  CONFIG_INVALID: "请检查 Stella 的模型、参考图数量及授权目录配置。",
   AGENT_NOT_FOUND: "请检查绑定的 Agent ID 是否存在。",
   IDENTITY_UNREADABLE: "请检查绑定 Agent 的工作区与 IDENTITY.md。",
   NO_VALID_REFERENCE: "请在授权目录中提供至少一张有效的 JPEG、PNG 或 WebP 参考图。",
   OUTPUT_INVALID: "请由调用方决定是否重新请求；不要假定结果未生成。",
 } as const;
 
-/** Local validation hints. Do not reuse upstream Google/network classification. */
+/** Local validation hints. Do not reuse upstream provider/network classification. */
 export function localActionHint(code: string): string {
   return Object.hasOwn(LOCAL_ACTION_HINTS, code)
     ? LOCAL_ACTION_HINTS[code as keyof typeof LOCAL_ACTION_HINTS]
@@ -25,11 +25,11 @@ export function normalizeNativeError(error: unknown): { code: string; message: s
   const rawStatus = value.status ?? value.statusCode ?? nested.code;
   const status = typeof rawStatus === "string" ? Number(rawStatus) : rawStatus;
   const message = String(value.message ?? nested.message ?? error).toLowerCase();
-  let code = "UNKNOWN", text = "原生图片请求未成功完成。", hint = "请检查宿主 Google provider、模型及网络配置。";
+  let code = "UNKNOWN", text = "原生图片请求未成功完成。", hint = "请检查宿主原生图片 provider、模型及网络配置。";
   if (/safety|blockedreason|block_reason/.test(message)) {
     code = "SAFETY_BLOCKED"; text = "请求触发了模型的内容安全限制。"; hint = "请调整提示词后由调用方重新请求。";
   } else if (status === 401 || /no api.?key|unauthenticated|api.?key.*(invalid|missing|not set|not configured)|auth.*profile|credential/.test(message)) {
-    code = "AUTH_FAILED"; text = "宿主 Google 认证不可用。"; hint = "请配置绑定 Agent 的宿主原生 Google 认证。";
+    code = "AUTH_FAILED"; text = "宿主原生图片认证不可用。"; hint = "请配置绑定 Agent 的宿主原生图片认证。";
   } else if (status === 403 || /permission.denied|blocked.*private|network.*policy/.test(message)) {
     code = "PERMISSION_DENIED"; text = "请求被权限或网络策略拒绝。"; hint = "请检查模型权限和官方 API 域名的网络解析。";
   } else if (status === 429 || /rate.?limit|resource_exhausted/.test(message)) {
@@ -39,11 +39,11 @@ export function normalizeNativeError(error: unknown): { code: string; message: s
   } else if (status === 400) {
     code = "INPUT_INVALID"; text = "原生模型不接受本次参数。"; hint = "请检查提示词、参考图及模型参数。";
   } else if (status === 404 || /not_found/.test(message)) {
-    code = "RESOURCE_NOT_FOUND"; text = "模型或请求资源不存在。"; hint = "请检查宿主支持的 Google 图片模型及引用文件。";
+    code = "RESOURCE_NOT_FOUND"; text = "模型或请求资源不存在。"; hint = "请检查宿主支持的图片模型及引用文件。";
   } else if (/no (images|image data|content parts)/.test(message)) {
     code = "NO_OUTPUT"; text = "模型没有返回有效图片。";
   } else if (status === 500 || status === 502 || status === 503 || /unavailable|network|fetch failed|econn|enotfound|eai_again/.test(message)) {
-    code = "UPSTREAM_UNAVAILABLE"; text = "网络或 Google 生图服务暂不可用。";
+    code = "UPSTREAM_UNAVAILABLE"; text = "网络或原生生图服务暂不可用。";
   }
   return { code, message: text, actionHint: hint };
 }

@@ -33,6 +33,14 @@ describe("native chat preparation", () => {
     expect(releaseReferences(state.agents[0], result.referenceToken).released).toBe(true);
     expect(releaseReferences(state.agents[0], result.referenceToken).released).toBe(false);
   });
+  it("omits resolution from toolInput when the selected model cannot apply it", () => {
+    state.skills = { entries: { "stella-selfie": { config: { model: "openai/gpt-image-2" } } } };
+    state.providers = [{ id: "openai", models: ["gpt-image-2"], capabilities: { edit: { enabled: true, maxInputImages: 5, supportsResolution: false } } }];
+    const result = prepareChat(request, state);
+    expect(result).toMatchObject({ ok: true, toolInput: { model: "openai/gpt-image-2", prompt: request.prompt, count: 1 } });
+    expect(result.toolInput).not.toHaveProperty("resolution");
+    releaseReferences(state.agents[0], result.referenceToken);
+  });
   it("requires the current Agent, passes explicit hints and refuses removed save/target/batch fields", () => {
     expect(() => prepareChat({ ...request, agentId: undefined } as never, state)).toThrow("actual conversation Agent");
     for (const field of [{ saveDir: "x" }, { save: true }, { count: 2 }, { target: "x" }]) expect(() => prepareChat({ ...request, ...field }, state)).toThrow("single-image request");

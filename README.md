@@ -2,13 +2,13 @@
 
 Help OpenClaw generate **persona-consistent** photos of the assistant — the same face, the same character, not a random new person each time.
 
-Three modes, multiple local references, Google's official native image provider. Say “send a selfie” and get one photo in the current conversation. A same-host plugin gets one image Buffer and owns preview, storage and publishing.
+Three modes, multiple local references, OpenClaw native image generation. Default model is Gemini Pro; any host-configured native model that can edit reference images is allowed. Say “send a selfie” and get one photo in the current conversation. A same-host plugin gets one image Buffer and owns preview, storage and publishing.
 
 |                   Direct selfie                  |                   Mirror selfie                  |                 Third-person photo                |
 | :--------------------------------------------: | :--------------------------------------------: | :--------------------------------------------: |
 | ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Third-Person Photo](./assets/Third-Person%20Photo.jpg) |
 
-Default: `google/gemini-3-pro-image`, 2K, one image, no aspect ratio. Stella does not keep a generated-image backup, even when an extra copy is explicitly requested.
+Default: `google/gemini-3-pro-image`, 2K when the model supports it, one image, no aspect ratio. Stella does not keep a generated-image backup, even when an extra copy is explicitly requested.
 
 ## Installation
 
@@ -18,7 +18,7 @@ clawhub install stella-selfie
 
 > Or download the package from [ClawHub](https://clawhub.ai/skills/stella-selfie) and install it manually.
 
-Verified with OpenClaw 2026.10.9. Use a compatible host that exposes `image_generate`, provider inventory and Agent resolvers, plus a host-supported Node version (baseline `>=24.22.1 <25` or `>=26.12.1`). The runtime has no npm dependencies. Configure the selected Agent's native Google provider/auth through OpenClaw; old skill-only keys are not migrated automatically.
+Verified with OpenClaw 2026.10.9. Use a compatible host that exposes `image_generate`, provider inventory and Agent resolvers, plus a host-supported Node version (baseline `>=24.22.1 <25` or `>=26.12.1`). The runtime has no npm dependencies. Configure the selected Agent's host-native image provider/auth through OpenClaw; old skill-only keys are not migrated automatically.
 
 Install in the intended host, profile, and workspace scope. The turn that starts generation needs `image_generate`, file writing for the request JSON, process execution for reference preparation/cleanup, and access to the actual Agent workspace.
 
@@ -40,9 +40,9 @@ Put non-sensitive values under `skills.entries.stella-selfie.config`:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `model` | `google/gemini-3-pro-image` | A Google image model declared by the host native provider |
+| `model` | `google/gemini-3-pro-image` | A host-declared native image model that supports reference-image editing |
 | `AvatarBlendEnabled` | `true` | Blend extra references from `AvatarsDir`. `false` uses only the main `Avatar` |
-| `AvatarMaxRefs` | `3` | Maximum local references to blend (current Google host max is 5) |
+| `AvatarMaxRefs` | `3` | Maximum local references to blend, limited by the selected model's `maxInputImages` |
 | `AvatarAllowedRoots` | workspace `assets/` and `avatars/` | Nonempty absolute-directory array that **replaces** the defaults |
 
 `AvatarBlendEnabled` / `AvatarMaxRefs` / `AvatarAllowedRoots` still accept legacy env values. Precedence: config → process env → skill env → defaults. Symlinks/junctions that point outside the workspace do not authorize their targets.
@@ -102,11 +102,11 @@ Explicit captions stay in the conversation reply, outside the image prompt.
 
 | User says | Resolution |
 | --- | --- |
-| (default), 2k, 2048, medium res, 中等分辨率 | `2K` |
+| 2k, 2048, medium res, 中等分辨率 | `2K` |
 | 1k, low res, 低分辨率 | `1K` |
 | 4k, high res, ultra, 超清, 高分辨率 | `4K` |
 
-Include an aspect ratio only when the user asked for one. Stella never infers it from the prompt.
+If the user does not ask, omit resolution; the helper applies `2K` only when the selected model supports it. Include an aspect ratio only when the user asked for one. Stella never infers it from the prompt.
 
 ### Timeline continuity
 
@@ -131,7 +131,7 @@ See [the in-process adapter guide](references/plugin-integration.md). Calling pl
 
 ## 2.0 notes
 
-Retired: fal / laozhang, provider SDKs and skill-specific key install, the old sender, `channel` / `target` / `--save-dir` / `count`, generated-image backups and material-library management. `Provider=gemini` is accepted for migration; other legacy `Provider` values must be removed. Repeated requests are new generations.
+Retired: skill-owned fal / laozhang SDKs and skill-specific key install, the old sender, `channel` / `target` / `--save-dir` / `count`, generated-image backups and material-library management. Host-native fal, OpenAI, MiniMax and other edit-capable providers can be selected with `config.model`. Remove leftover `Provider` fields and use `config.model` instead. Repeated requests are new generations.
 
 ```sh
 npm ci

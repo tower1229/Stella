@@ -21,7 +21,7 @@ const result = await generateForPlugin(
     schemaVersion: 1,
     agentId: callerConfig.agentId ?? "main",
     prompt: "A selfie of this person, sitting by a cafe window, looking into the lens.",
-    resolution: "2K",
+    // resolution: "2K", // Include only when explicitly requested; helper applies 2K when supported.
     // aspectRatio: "3:4", // Include only when explicitly requested.
   },
 );
@@ -40,7 +40,7 @@ The adapter calls `api.runtime.imageGeneration.generate(...)` with `cfg`, the bo
 
 ## Request and result
 
-Request fields are `schemaVersion: 1`, required full `prompt`, optional `agentId`, optional `resolution` (1K/2K/4K, default 2K), optional `aspectRatio`. The default Agent is the exact ID `main`. No count, target, channel, saveDir, description, or per-request credential fields are accepted. Follow the three Stella prompt modes and optional timeline rules in SKILL.md when composing prompt; the adapter does not rewrite it or call timeline/vision.
+Request fields are `schemaVersion: 1`, required full `prompt`, optional `agentId`, optional `resolution` (1K/2K/4K; applied as 2K only when the selected model supports it), optional `aspectRatio`. The default Agent is the exact ID `main`. No count, target, channel, saveDir, description, or per-request credential fields are accepted. Follow the three Stella prompt modes and optional timeline rules in SKILL.md when composing prompt; the adapter does not rewrite it or call timeline/vision.
 
 Success is an in-process object:
 
@@ -74,14 +74,14 @@ Read settings from `skills.entries.stella-selfie.config`:
 
 `AvatarAllowedRoots`, when supplied, is a non-empty array of absolute directories replacing the default authorized roots. Defaults authorize only assets and avatars inside the actual Agent workspace; outward symlink/junction targets are not implicitly authorized. The existing AvatarBlendEnabled/AvatarMaxRefs/AvatarAllowedRoots environment settings remain readable, with config taking precedence, followed by process env and skill env.
 
-At least one valid local JPEG/PNG/WebP reference is required, up to 20 MiB each. Main Avatar is preferred; AvatarsDir is optional. Blend disabled means main only. References are realpath-deduplicated, extra images are selected newest first, default at most three, current Google host maximum five. Revalidation produces buffers so a later path change cannot replace the bytes passed to the runtime. No disk snapshot is needed for this in-process interface.
+At least one valid local JPEG/PNG/WebP reference is required, up to 20 MiB each. Main Avatar is preferred; AvatarsDir is optional. Blend disabled means main only. References are realpath-deduplicated, extra images are selected newest first, default at most three, limited by the selected model's native `maxInputImages`. Revalidation produces buffers so a later path change cannot replace the bytes passed to the runtime. No disk snapshot is needed for this in-process interface.
 
 This direct-buffer path differs from ordinary chat: the native image tool may resize or re-encode local reference snapshots before upload. The in-process plugin path does not invoke that chat-tool optimization. Neither path changes the caller's original reference files.
 
-Select only a model declared by the native Google provider and support the requested parameters. The native provider owns auth and output size limits. Credentials are not read from the identity file or passed through request fields. Do not assume a legacy skill-only API key has already configured the host's native Google authentication.
+Select a host-declared native model that supports reference-image editing and the requested parameters. Default is `google/gemini-3-pro-image`. The native provider owns auth and output size limits. Credentials are not read from the identity file or passed through request fields. Do not assume a legacy skill-only API key has already configured the host's native provider authentication.
 
 ## Verification scope
 
-The adapter has local tests for Agent/auth binding, configuration precedence, reference authorization, single-output validation, parameter forwarding, no file creation and no retry. Real CLI and chat Google generations have separately exercised this host's native provider. A calling plugin's own preview/upload flow is outside this repository and still needs consumer-side validation.
+The adapter has local tests for Agent/auth binding, configuration precedence, reference authorization, single-output validation, parameter forwarding, no file creation and no retry. Real CLI and chat generations have separately exercised this host's native Google provider; other providers are covered by inventory mocks. A calling plugin's own preview/upload flow is outside this repository and still needs consumer-side validation.
 
 Official interfaces: [Plugin runtime media helpers](https://docs.openclaw.ai/plugins/sdk-runtime/media#api-runtime-imagegeneration), [Agent workspace](https://docs.openclaw.ai/concepts/agent-workspace).

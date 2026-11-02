@@ -228,3 +228,10 @@
 
 一次性探针 `/tmp/stella-plugin-live-once.mjs` 已删。未 commit、未发布。
 
+## ClawHub 2.0.0 发布（2026-11-02）
+
+`npm run release:clawhub` 上传成功。公开 `latest` 已从 1.3.3 切到 **2.0.0**。扫描 `CLEAN`（engine v2.4.27）。页面 https://clawhub.ai/tower1229/skills/stella-selfie
+
+- 13 个运行文件 SHA256 与本地清单逐项一致；含 `plugin.js` / `plugin-integration.md`，无 `bili.js`。本地 bundle 指纹 `cac8067743c5be90151e0e259a714079d4b4303d446390e422371a4930f31179`；ClawHub `sourceFingerprint` `9e24775d302959b8b9060d85fe75b73bb655f2077817b38d4d1867fd5afa9d78`。
+- `clawhub skill verify --version 2.0.0` 安全结论 clean，但 `decision=fail` 仅因平台 `skill-card.md` 尚未生成（`card.missing`），不是包内容失败。
+

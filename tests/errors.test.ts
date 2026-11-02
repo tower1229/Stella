@@ -27,7 +27,7 @@ describe("safe native errors", () => {
   it.each([
     "INPUT_INVALID", "CONFIG_INVALID", "AGENT_NOT_FOUND",
     "IDENTITY_UNREADABLE", "NO_VALID_REFERENCE", "OUTPUT_INVALID",
-  ])("keeps local %s hints off the upstream Google/network path", code => {
+  ])("keeps local %s hints off the upstream network classification path", code => {
     const hint = localActionHint(code);
     expect(hint).toBeTruthy();
     expect(hint).not.toMatch(/网络|provider、模型及网络/);
