@@ -215,3 +215,16 @@
 
 公开同宿主内存接口已硬切改名为 `generateForPlugin` / `dist/scripts/plugin.js` / `references/plugin-integration.md`。请求字段、默认 Agent `main`、默认 2K、单图、调用方持有 Buffer、不落盘、不重试均未改。不保留 `generateForBili`、`bili.js` 或类型别名。上文各节的 bili 探针文件名、已安装 `bili.js` 路径和历史 SHA 仍是当时的证据，不改写。本机已装副本需之后 `sync:local` 才能对上新入口。未进行新的付费生图。
 
+## generateForPlugin 本机同步验收（2026-11-02）
+
+当前 Agent `main` 工作区已合并为 `~/.openclaw/workspace`（不再是 `workspace/main`）。宿主 OpenClaw `2026.10.9`。
+
+- 评审修复：`.clawhubignore` 改为放行 `plugin-integration.md` / `plugin.js`；示例与 README 改为调用方可选 `agentId`。`npm test` 110 通过。
+- `npm run sync:local -- --agent main` 指纹 **cac8067743c5be90151e0e259a714079d4b4303d446390e422371a4930f31179**。已装 13 个白名单文件含 `plugin.js`。同步会保留旧文件，因此删除了已装副本里残留的 `dist/scripts/bili.js` 和 `references/bili-integration.md`。
+- 无生图：smoke 三种模式各 2 张参考图、Google Pro、2K；已装副本对官方 runtime 的离线 plugin 验证通过；已装 `skill.js prepare` + `release` 通过，`count` / `target` 为 `INPUT_INVALID`。
+- DNS `generativelanguage.googleapis.com` 为 `172.217.x.x`，`fakeIp=false`。
+- 第一次真机探针在证据阶段对 `isConfigured()` 无参调用崩溃；generate 约 26s 结束但未留下 SHA，无素材文件。修好探针后再跑一次已安装 `generateForPlugin`：`ok=true`，JPEG 2,481,251 字节，1686×2528，SHA256 `5d2193be5118f1e5f3876f40b50f7d30cb531db336485b55d5abbc7d4c779c9d`。`listProviders({ config })` 为 google/minimax/minimax-portal/openai。无 material、无自动聊天交付。约 26 秒。
+- 证据：`out/acceptance-2.0.0-darwin/plugin-live.json`（git 忽略）。未把图片写入仓库。Web 聊天未再付费重跑。
+
+一次性探针 `/tmp/stella-plugin-live-once.mjs` 已删。未 commit、未发布。
+

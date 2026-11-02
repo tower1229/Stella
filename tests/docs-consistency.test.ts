@@ -87,11 +87,16 @@ describe("selfie/timeline documentation contract", () => {
   it("keeps the public runtime entry generic", () => {
     const skill = readRepoFile("SKILL.md");
     const plugin = readRepoFile("references", "plugin-integration.md");
-    for (const doc of [skill, plugin]) {
+    const ignore = readRepoFile(".clawhubignore");
+    for (const doc of [skill, plugin, ignore]) {
       expect(doc).not.toContain("bili.js");
       expect(doc).not.toContain("generateForBili");
     }
+    expect(plugin).not.toContain("stellaAgentId");
     expect(skill).toContain("dist/scripts/plugin.js");
     expect(plugin).toContain("generateForPlugin");
+    expect(plugin).toContain("callerConfig.agentId");
+    expect(ignore).toContain("!references/plugin-integration.md");
+    expect(ignore).toContain("!dist/scripts/plugin.js");
   });
 });

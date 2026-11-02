@@ -60,7 +60,7 @@ The helper validates references and supplies native image_generate arguments. Th
 
 ## Same-host plugin
 
-Follow [the in-process adapter guide](references/plugin-integration.md). Bind an optional agentId in the calling plugin's Stella configuration; absent means exactly main, missing bindings fail. The adapter resolves the actual Agent identity/workspace/auth directory, calls api.runtime.imageGeneration.generate once, and returns Buffer + MIME or a safe error with generation outcome. It creates no material ID, path, content description or persistent file.
+Follow [the in-process adapter guide](references/plugin-integration.md). The caller supplies the Stella skill directory and an optional agentId; absent means exactly main, missing bindings fail. The adapter resolves the actual Agent identity/workspace/auth directory, calls api.runtime.imageGeneration.generate once, and returns Buffer + MIME or a safe error with generation outcome. It creates no material ID, path, content description or persistent file.
 
 ## Migration and development
 

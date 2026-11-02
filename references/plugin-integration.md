@@ -19,7 +19,7 @@ const result = await generateForPlugin(
   { listAgentIds, onWarning: message => api.logger.warn(message) },
   {
     schemaVersion: 1,
-    agentId: callerConfig.stellaAgentId ?? "main",
+    agentId: callerConfig.agentId ?? "main",
     prompt: "A selfie of this person, sitting by a cafe window, looking into the lens.",
     resolution: "2K",
     // aspectRatio: "3:4", // Include only when explicitly requested.

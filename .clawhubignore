@@ -6,7 +6,7 @@
 !references/
 references/**
 !references/timeline-integration.md
-!references/bili-integration.md
+!references/plugin-integration.md
 !templates/
 templates/**
 !templates/SOUL.fragment.md
@@ -15,10 +15,10 @@ dist/**
 !dist/scripts/
 dist/scripts/**
 !dist/scripts/avatars.js
-!dist/scripts/bili.js
 !dist/scripts/chat.js
 !dist/scripts/errors.js
 !dist/scripts/identity.js
 !dist/scripts/images.js
 !dist/scripts/native-cli.js
+!dist/scripts/plugin.js
 !dist/scripts/skill.js

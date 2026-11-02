@@ -60,7 +60,7 @@ timeline 可选且尽力增强：仅 Sparse 当前状态请求，或对当前会
 
 ## 同宿主 plugin
 
-按 [内存交接说明](references/plugin-integration.md) 接入。调用方配置可选 agentId，未配置精确使用 main，绑定不存在时报错。适配器解析实际 Agent 身份、工作区和认证目录，单次调用 api.runtime.imageGeneration.generate，返回 Buffer + MIME 或带生成结果状态的明确错误。不创建持久素材 ID、路径、内容描述或文件。
+按 [内存交接说明](references/plugin-integration.md) 接入。调用方配置 Stella skill 目录和可选 agentId，未配置精确使用 main，绑定不存在时报错。适配器解析实际 Agent 身份、工作区和认证目录，单次调用 api.runtime.imageGeneration.generate，返回 Buffer + MIME 或带生成结果状态的明确错误。不创建持久素材 ID、路径、内容描述或文件。
 
 ## 迁移与开发
 
