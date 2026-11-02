@@ -88,7 +88,9 @@ describe("selfie/timeline documentation contract", () => {
     const skill = readRepoFile("SKILL.md");
     const plugin = readRepoFile("references", "plugin-integration.md");
     const ignore = readRepoFile(".clawhubignore");
-    for (const doc of [skill, plugin, ignore]) {
+    const readme = readRepoFile("README.md");
+    const readmeCn = readRepoFile("README_CN.md");
+    for (const doc of [skill, plugin, ignore, readme, readmeCn]) {
       expect(doc).not.toContain("bili.js");
       expect(doc).not.toContain("generateForBili");
     }
@@ -96,7 +98,40 @@ describe("selfie/timeline documentation contract", () => {
     expect(skill).toContain("dist/scripts/plugin.js");
     expect(plugin).toContain("generateForPlugin");
     expect(plugin).toContain("callerConfig.agentId");
+    expect(readme).toContain("generateForPlugin");
+    expect(readmeCn).toContain("generateForPlugin");
     expect(ignore).toContain("!references/plugin-integration.md");
     expect(ignore).toContain("!dist/scripts/plugin.js");
+  });
+
+  it("keeps README chat Agent, failed cleanup, plugin adapter and SOUL fragment aligned", () => {
+    const readme = readRepoFile("README.md");
+    const readmeCn = readRepoFile("README_CN.md");
+    const skill = readRepoFile("SKILL.md");
+    const soul = readRepoFile("templates", "SOUL.fragment.md");
+    const soulClose = "is incomplete, explain what is missing before generating or sending an image.";
+
+    expect(skill).toContain("chat has no main fallback");
+    expect(readme).toContain("chat has no main fallback");
+    expect(readme).toContain("exact `main` when omitted");
+    expect(readme).toContain("This plugin default does not apply to chat.");
+    expect(readmeCn).toContain("没有 main 回退");
+    expect(readmeCn).toContain("未配置精确使用 `main`");
+    expect(readmeCn).toContain("这条 plugin 缺省不适用于聊天");
+
+    expect(skill).toContain("Failed preparation attempts to remove every file it created");
+    expect(readme).toContain("Failed preparation cleans up files it created, including partial writes");
+    expect(readme).toContain("incomplete cleanup reports the directory for explicit cleanup");
+    expect(readmeCn).toContain("准备失败会清理本次创建的文件，包括部分写入的文件");
+    expect(readmeCn).toContain("无法清理时报告目录供明确清理");
+
+    expect(readme).toContain("Call `generateForPlugin`");
+    expect(readme).toContain("The adapter resolves the actual Agent identity, workspace and auth directory, calls `api.runtime.imageGeneration.generate` once");
+    expect(readmeCn).toContain("调用 `generateForPlugin`");
+    expect(readmeCn).toContain("适配器解析实际 Agent 身份、工作区和认证目录，单次调用 `api.runtime.imageGeneration.generate`");
+
+    expect(soul).toContain(soulClose);
+    expect(readme).toContain(soulClose);
+    expect(readmeCn).toContain(soulClose);
   });
 });
