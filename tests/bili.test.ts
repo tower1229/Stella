@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateForBili, type BiliImageRequest, type NativeImageResult, type StellaHost } from "../scripts/bili";
+import * as images from "../scripts/images";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 const provider = { id: "google", models: ["gemini-3-pro-image", "gemini-3.1-flash-image"], capabilities: {
@@ -63,6 +64,7 @@ describe("bili native in-memory integration", () => {
     expect(params.inputImages).toEqual([{ buffer: png, mimeType: "image/png" }]);
     expect(params).not.toHaveProperty("aspectRatio");
     expect(params).not.toHaveProperty("size");
+    expect(host.runtime.imageGeneration.listProviders).toHaveBeenCalledWith({ cfg: config });
   });
   it("uses the bound Agent for both workspace and auth and passes explicit image hints", async () => {
     expect(await call({ ...request, agentId: "stella", resolution: "4K", aspectRatio: "3:4" })).toMatchObject({ ok: true, agentId: "stella" });
@@ -70,13 +72,19 @@ describe("bili native in-memory integration", () => {
     expect(generate.mock.calls[0][0]).toMatchObject({ agentDir: path.join(root, "auth", "stella"), resolution: "4K", aspectRatio: "3:4" });
   });
   it("fails if main is not configured; it does not select the sole other Agent", async () => {
-    expect(await generateForBili(host, { listAgentIds: () => ["stella"] }, request)).toMatchObject({ ok: false, error: { code: "AGENT_NOT_FOUND", generationOutcome: "not_started" } });
+    const missing = await generateForBili(host, { listAgentIds: () => ["stella"] }, request);
+    expect(missing).toMatchObject({ ok: false, error: { code: "AGENT_NOT_FOUND", generationOutcome: "not_started" } });
+    if (missing.ok) throw new Error("Expected failure");
+    expect(missing.error.actionHint).not.toMatch(/Google|网络|network/i);
     expect(generate).not.toHaveBeenCalled();
     expect(host.runtime.agent.resolveAgentWorkspaceDir).not.toHaveBeenCalled();
   });
   it.each([{ count: 2 }, { target: "elsewhere" }, { saveDir: "anywhere" }, { description: true }, { schemaVersion: 2 }, { resolution: "8K" }, { aspectRatio: "0:0" }])(
     "rejects unsupported request fields and hints before generation: %j", async extra => {
-      expect(await call({ ...request, ...extra } as BiliImageRequest)).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
+      const result = await call({ ...request, ...extra } as BiliImageRequest);
+      expect(result).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
+      if (result.ok) throw new Error("Expected failure");
+      expect(result.error.actionHint).not.toMatch(/Google|网络|network/i);
       expect(generate).not.toHaveBeenCalled();
     });
   it("retains a valid main reference when an optional directory is unavailable", async () => {
@@ -94,7 +102,10 @@ describe("bili native in-memory integration", () => {
   it("keeps blend disabled main-only even if valid extra pictures exist", async () => {
     options({ AvatarBlendEnabled: false });
     fs.writeFileSync(path.join(workspace, "IDENTITY.md"), "Avatar: missing.png\nAvatarsDir: assets\n");
-    expect(await call()).toMatchObject({ ok: false, error: { code: "NO_VALID_REFERENCE" } });
+    const result = await call();
+    expect(result).toMatchObject({ ok: false, error: { code: "NO_VALID_REFERENCE" } });
+    if (result.ok) throw new Error("Expected failure");
+    expect(result.error.actionHint).not.toMatch(/Google|网络|network/i);
     expect(generate).not.toHaveBeenCalled();
   });
   it("honors custom allowed roots without mutating process environment", async () => {
@@ -132,12 +143,14 @@ describe("bili native in-memory integration", () => {
     expect(generate).not.toHaveBeenCalled();
   });
   it("does not reopen reference paths after passing validated buffers", async () => {
+    const spy = vi.spyOn(images, "readReferenceImage");
     generate.mockImplementationOnce(async params => {
       fs.writeFileSync(path.join(workspace, "assets/main.png"), "changed after dispatch");
       expect(params.inputImages[0].buffer).toEqual(png);
       return { images: [{ buffer: png, mimeType: "image/png" }], provider: "google", model: "gemini-3-pro-image", ignoredOverrides: [] };
     });
     expect(await call()).toMatchObject({ ok: true });
+    expect(spy).toHaveBeenCalledTimes(1);
   });
   it.each([
     { images: [] }, { images: [{ buffer: png, mimeType: "image/png" }, { buffer: png, mimeType: "image/png" }] },

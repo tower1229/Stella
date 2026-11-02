@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeNativeError } from "../scripts/errors";
+import { localActionHint, normalizeNativeError } from "../scripts/errors";
 
 describe("safe native errors", () => {
   it.each([
@@ -23,5 +23,13 @@ describe("safe native errors", () => {
     expect(result.message).toBeTruthy();
     expect(result.actionHint).toBeTruthy();
     expect(JSON.stringify(result)).not.toMatch(/secret-key|raw response|private|stack/);
+  });
+  it.each([
+    "INPUT_INVALID", "CONFIG_INVALID", "AGENT_NOT_FOUND",
+    "IDENTITY_UNREADABLE", "NO_VALID_REFERENCE", "OUTPUT_INVALID",
+  ])("keeps local %s hints off the upstream Google/network path", code => {
+    const hint = localActionHint(code);
+    expect(hint).toBeTruthy();
+    expect(hint).not.toMatch(/网络|provider、模型及网络/);
   });
 });

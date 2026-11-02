@@ -4,7 +4,8 @@ import * as os from "node:os";
 import { fork } from "node:child_process";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { prepareChat, releaseReferences, type ChatState } from "../scripts/chat";
+import { parseProviderInventory, prepareChat, releaseReferences, type ChatState } from "../scripts/chat";
+import { InputError } from "../scripts/bili";
 import { runSkill } from "../scripts/skill";
 // Mutable export facade for fault injection; ordinary operations still use the real filesystem.
 vi.mock("node:fs", async importOriginal => ({ ...await importOriginal<typeof import("node:fs")>() }));
@@ -179,7 +180,7 @@ describe("native chat preparation", () => {
     const mkdir = fs.mkdirSync;
     const failure = Object.assign(new Error("Cannot create scratch directory"), { code: "EACCES" });
     vi.spyOn(fs, "mkdirSync").mockImplementation((...args) => {
-      if (args[0] === path.join(root, "stella-selfie")) throw failure;
+      if (args[0] === path.join(fs.realpathSync(root), "stella-selfie")) throw failure;
       return mkdir(...args);
     });
     expect(() => prepareChat(request, state)).toThrow(failure);
@@ -200,5 +201,30 @@ describe("native chat preparation", () => {
   });
   it("rejects legacy CLI invocation before any host query", async () => {
     await expect(runSkill(["--prompt", "x", "--channel", "telegram", "--target", "x", "--save-dir", "x"])).rejects.toThrow("Legacy targets");
+  });
+});
+
+const google = {
+  id: "google",
+  models: ["gemini-3-pro-image"],
+  capabilities: { edit: { enabled: true, maxInputImages: 5 } },
+};
+describe("native provider inventory parsing", () => {
+  it("accepts a bare provider array used by the runtime", () => {
+    expect(parseProviderInventory([google])).toEqual([google]);
+  });
+  it("unwraps a providers envelope and keeps configured hosts", () => {
+    expect(parseProviderInventory({
+      providers: [
+        { ...google, available: true, configured: true },
+        { id: "openai", available: true, configured: false, capabilities: { edit: { enabled: true } } },
+      ],
+    })).toEqual([google]);
+  });
+  it("skips providers that are present but not available", () => {
+    expect(parseProviderInventory([{ ...google, available: false, configured: true }])).toEqual([]);
+  });
+  it("rejects inventory items without an id", () => {
+    expect(() => parseProviderInventory([{ capabilities: { edit: { enabled: true } } }])).toThrow(InputError);
   });
 });

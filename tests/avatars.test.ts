@@ -3,7 +3,9 @@ import * as fs from "fs";
 
 vi.mock("fs");
 // Selection ordering is tested here; real file validation is covered in avatar-security.test.ts.
-vi.mock("../scripts/images", () => ({ readReferenceImage: vi.fn() }));
+vi.mock("../scripts/images", () => ({
+  readReferenceImage: vi.fn(() => ({ data: Buffer.from("mock-ref"), mimeType: "image/jpeg" })),
+}));
 
 // Use `any` to avoid Dirent generic type mismatch between Node versions
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,7 +59,8 @@ describe("selectAvatars", () => {
       avatarBlendEnabled: false,
     });
 
-    expect(result).toEqual(["/mock/avatar.png"]);
+    expect(result.map(item => item.filePath)).toEqual(["/mock/avatar.png"]);
+    expect(result[0]).toMatchObject({ buffer: Buffer.from("mock-ref"), mimeType: "image/jpeg" });
   });
 
   it("warns and skips when AvatarsDir does not exist", async () => {
@@ -102,7 +105,7 @@ describe("selectAvatars", () => {
       avatarBlendEnabled: true,
     });
 
-    expect(result.map((p) => (p as string).split("/").pop())).toEqual([
+    expect(result.map(item => item.filePath.split("/").pop())).toEqual([
       "new.jpg",
       "mid.jpg",
       "old.jpg",
@@ -128,8 +131,8 @@ describe("selectAvatars", () => {
     });
 
     // Avatar appears once at position 0, not duplicated
-    expect(result.filter((p) => p === avatarPath)).toHaveLength(1);
-    expect(result[0]).toBe(avatarPath);
+    expect(result.filter(item => item.filePath === avatarPath)).toHaveLength(1);
+    expect(result[0].filePath).toBe(avatarPath);
   });
 
   it("respects AvatarMaxRefs limit", async () => {
@@ -167,7 +170,7 @@ describe("selectAvatars", () => {
       avatarBlendEnabled: true,
     });
 
-    const names = result.map((p) => (p as string).split("/").pop()!);
+    const names = result.map(item => item.filePath.split("/").pop()!);
     expect(names).toContain("photo.jpg");
     expect(names).toContain("shot.png");
     expect(names).not.toContain("readme.txt");
@@ -194,6 +197,6 @@ describe("selectAvatars", () => {
     });
 
     expect(result).toHaveLength(2);
-    expect((result[0] as string).split("/").pop()).toBe("a.jpg");
+    expect(result[0].filePath.split("/").pop()).toBe("a.jpg");
   });
 });

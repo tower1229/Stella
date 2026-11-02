@@ -1,5 +1,6 @@
+import { InputError } from "./bili";
 import { prepareChat, readChatState, releaseReferences } from "./chat";
-import { normalizeNativeError } from "./errors";
+import { localActionHint, normalizeNativeError } from "./errors";
 
 export const SMOKE_PROMPTS = [
   "A mirror selfie of this person, wearing a casual outfit at home, showing full body reflection.",
@@ -17,4 +18,9 @@ async function main() {
     console.log(JSON.stringify({ ok: true, agentId, model: prepared.toolInput.model, references: prepared.toolInput.images.length, resolution: prepared.toolInput.resolution, generationRequested: false }));
   }
 }
-if (require.main === module) main().catch(error => { console.error(JSON.stringify(normalizeNativeError(error))); process.exitCode = 1; });
+if (require.main === module) main().catch(error => {
+  console.error(JSON.stringify(error instanceof InputError
+    ? { code: error.code, message: error.message, actionHint: localActionHint(error.code) }
+    : normalizeNativeError(error)));
+  process.exitCode = 1;
+});

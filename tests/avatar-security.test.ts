@@ -8,7 +8,7 @@ const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 describe("reference authorization boundary", () => {
   let root: string, allowed: string, avatar: string;
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "stella-boundary-"));
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "stella-boundary-")));
     allowed = path.join(root, "avatars"); fs.mkdirSync(allowed);
     avatar = path.join(allowed, "main.png"); fs.writeFileSync(avatar, png);
   });

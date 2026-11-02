@@ -2,10 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseIdentity } from "./identity";
 import { selectAvatars } from "./avatars";
-import { inspectImage, readReferenceImage } from "./images";
-import { normalizeNativeError } from "./errors";
+import { inspectImage } from "./images";
+import { localActionHint, normalizeNativeError } from "./errors";
 
-export type Resolution = "1K" | "2K" | "4K";
+export const AGENT_ID = /^[a-z0-9][a-z0-9_-]*$/;
+export const RESOLUTIONS = ["1K", "2K", "4K"] as const;
+export type Resolution = typeof RESOLUTIONS[number];
 export interface ImageAsset { buffer: Buffer; mimeType: string; fileName?: string }
 export interface NativeGenerateParams<C> {
   cfg: C;
@@ -42,7 +44,7 @@ export interface StellaHost<C> {
       resolveAgentDir(cfg: C, agentId: string): string;
     };
     imageGeneration: {
-      listProviders(params?: { config?: C }): readonly ImageProvider[];
+      listProviders(params?: { cfg?: C }): readonly ImageProvider[];
       generate(params: NativeGenerateParams<C>): Promise<NativeImageResult>;
     };
   };
@@ -96,8 +98,8 @@ function validateRequest(value: unknown): BiliImageRequest {
   const allowed = ["schemaVersion", "agentId", "prompt", "resolution", "aspectRatio"];
   if (Object.keys(r).some(key => !allowed.includes(key)) || r.schemaVersion !== 1 ||
       typeof r.prompt !== "string" || !r.prompt.trim() || r.prompt.includes("\0") ||
-      (r.agentId !== undefined && (typeof r.agentId !== "string" || !/^[a-z0-9][a-z0-9_-]*$/.test(r.agentId))) ||
-      (r.resolution !== undefined && !["1K", "2K", "4K"].includes(r.resolution as string)) ||
+      (r.agentId !== undefined && (typeof r.agentId !== "string" || !AGENT_ID.test(r.agentId))) ||
+      (r.resolution !== undefined && (typeof r.resolution !== "string" || !(RESOLUTIONS as readonly string[]).includes(r.resolution))) ||
       (r.aspectRatio !== undefined && (typeof r.aspectRatio !== "string" || !/^\d+:\d+$/.test(r.aspectRatio)))) {
     throw new InputError("INPUT_INVALID", "Use a v1 single-image request with prompt, optional agentId, resolution and aspectRatio.");
   }
@@ -161,7 +163,7 @@ export function prepareImageRequest<C>(
     try { workspace = fs.realpathSync(api.runtime.agent.resolveAgentWorkspaceDir(api.config, agentId)); }
     catch { throw new InputError("IDENTITY_UNREADABLE", "The bound Agent workspace is unavailable."); }
     const config = settings(api.config, workspace);
-    const provider = api.runtime.imageGeneration.listProviders({ config: api.config }).find(p => p.id === "google");
+    const provider = api.runtime.imageGeneration.listProviders({ cfg: api.config }).find(p => p.id === "google");
     if (!provider?.capabilities.edit.enabled || !provider.models?.includes(config.model.slice("google/".length)) ||
         (provider.capabilities.edit.maxInputImages !== undefined && config.max > provider.capabilities.edit.maxInputImages)) {
       throw new InputError("CONFIG_INVALID", "The selected Google model or reference count is unsupported by this host.");
@@ -179,19 +181,13 @@ export function prepareImageRequest<C>(
     let identity: ReturnType<typeof parseIdentity>;
     try { identity = parseIdentity(workspace); }
     catch { throw new InputError("IDENTITY_UNREADABLE", "The bound Agent IDENTITY.md could not be read."); }
-    const paths = selectAvatars({
+    const references = selectAvatars({
       ...identity, avatarMaxRefs: config.max, avatarBlendEnabled: config.blend,
       allowedRoots: config.allowedRoots, onWarning: integration.onWarning ?? (() => {}),
     });
-    if (paths.length === 0) throw new InputError("NO_VALID_REFERENCE", "At least one authorized JPEG, PNG or WebP reference is required.");
-    // Read again immediately before dispatch; these checked bytes, never paths, cross the runtime boundary.
-    let inputImages: ImageAsset[];
-    try {
-      inputImages = paths.map(file => {
-        const { data, mimeType } = readReferenceImage(file, config.allowedRoots);
-        return { buffer: data, mimeType };
-      });
-    } catch { throw new InputError("NO_VALID_REFERENCE", "A reference changed or failed validation before dispatch."); }
+    if (references.length === 0) throw new InputError("NO_VALID_REFERENCE", "At least one authorized JPEG, PNG or WebP reference is required.");
+    // First-read bytes cross the runtime boundary; do not reopen the original path.
+    const inputImages: ImageAsset[] = references.map(({ buffer, mimeType }) => ({ buffer, mimeType }));
     const params: NativeGenerateParams<C> = {
       cfg: api.config, agentDir, prompt: request.prompt, modelOverride: config.model,
       autoProviderFallback: false, count: 1, resolution, inputImages,
@@ -225,13 +221,17 @@ export async function generateForBili<C>(
     return { schemaVersion: 1, ok: true, agentId, generatedAt: new Date().toISOString(),
       image: { buffer: image.buffer, mimeType: format.mimeType } };
   } catch (error) {
+    if (error instanceof InputError) {
+      return { schemaVersion: 1, ok: false, error: {
+        code: error.code, stage, generationOutcome, message: error.message,
+        actionHint: localActionHint(error.code),
+      } };
+    }
     const details = normalizeNativeError(error);
     return { schemaVersion: 1, ok: false, error: {
-      code: error instanceof InputError ? error.code : details.code,
-      stage, generationOutcome,
+      code: details.code, stage, generationOutcome,
       // Never expose the provider's raw response, key, original error or stack to the calling workflow.
-      message: error instanceof InputError ? error.message : details.message,
-      actionHint: details.actionHint,
+      message: details.message, actionHint: details.actionHint,
     } };
   }
 }

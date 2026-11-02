@@ -54,6 +54,12 @@ function safeRealpath(filePath: string): string | null {
  * 4. Deduplicate by realpath, keeping Avatar at position 0
  * 5. Warn (don't throw) if AvatarsDir is missing or unreadable
  */
+export interface SelectedReference {
+  filePath: string;
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export function selectAvatars(options: {
   avatar: string | null;
   avatarsDir: string | null;
@@ -61,22 +67,22 @@ export function selectAvatars(options: {
   avatarBlendEnabled: boolean;
   allowedRoots?: string[];
   onWarning?: (message: string) => void;
-}): string[] {
+}): SelectedReference[] {
   const { avatar, avatarsDir, avatarMaxRefs, avatarBlendEnabled } = options;
   const warn = options.onWarning ?? console.warn;
 
   const seenRealpaths = new Set<string>();
-  const result: string[] = [];
+  const result: SelectedReference[] = [];
 
   // Add primary Avatar first
   if (avatar) {
     if (fs.existsSync(avatar)) {
       try {
-        readReferenceImage(avatar, options.allowedRoots);
+        const image = readReferenceImage(avatar, options.allowedRoots);
         const real = safeRealpath(avatar);
         if (real) {
           seenRealpaths.add(real);
-          result.push(toPosixPath(avatar));
+          result.push({ filePath: toPosixPath(avatar), buffer: image.data, mimeType: image.mimeType });
         }
       } catch (err) {
         warn(`[stella] Warning: Invalid Avatar: ${(err as Error).message}`);
@@ -128,15 +134,16 @@ export function selectAvatars(options: {
         const real = safeRealpath(candidate.filePath);
         if (!real || seenRealpaths.has(real)) continue;
 
+        let image: ReturnType<typeof readReferenceImage>;
         try {
-          readReferenceImage(candidate.filePath, options.allowedRoots);
+          image = readReferenceImage(candidate.filePath, options.allowedRoots);
         } catch (err) {
           warn(`[stella] Warning: Invalid reference image: ${(err as Error).message}`);
           continue;
         }
 
         seenRealpaths.add(real);
-        result.push(toPosixPath(candidate.filePath));
+        result.push({ filePath: toPosixPath(candidate.filePath), buffer: image.data, mimeType: image.mimeType });
       }
     }
   }

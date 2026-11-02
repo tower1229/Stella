@@ -5,8 +5,69 @@ import { InputError, prepareImageRequest, type BiliImageRequest, type ImagePrepa
 import { inspectImage, isPathInside } from "./images";
 import { MissingConfigPathError, readAgentLocations, runOpenClawJson, type AgentLocation } from "./native-cli";
 
-interface ChatRequest extends BiliImageRequest { agentId: string; caption?: string }
+export interface ChatRequest extends BiliImageRequest { agentId: string; caption?: string }
 export interface ChatState { agents: AgentLocation[]; skills: unknown; providers: ImageProvider[] }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function optionalStringList(value: unknown, label: string): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.every(item => typeof item === "string")) {
+    throw new InputError("CONFIG_INVALID", `Unsupported native image provider inventory: ${label}.`);
+  }
+  return value;
+}
+export function parseProviderInventory(value: unknown): ImageProvider[] {
+  const items = Array.isArray(value) ? value
+    : isRecord(value) && Array.isArray(value.providers) ? value.providers
+    : undefined;
+  if (!items) throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
+  const providers: ImageProvider[] = [];
+  for (const item of items) {
+    if (!isRecord(item) || typeof item.id !== "string" || !item.id) {
+      throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
+    }
+    if (Object.hasOwn(item, "available") && item.available !== true) continue;
+    if (Object.hasOwn(item, "configured") && item.configured !== true) continue;
+    if (!isRecord(item.capabilities) || !isRecord(item.capabilities.edit) || typeof item.capabilities.edit.enabled !== "boolean") {
+      throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
+    }
+    const edit = item.capabilities.edit;
+    const enabled = edit.enabled;
+    const maxInputImages = edit.maxInputImages;
+    const supportsResolution = edit.supportsResolution;
+    const supportsAspectRatio = edit.supportsAspectRatio;
+    if (typeof enabled !== "boolean"
+        || (maxInputImages !== undefined && (typeof maxInputImages !== "number" || !Number.isInteger(maxInputImages)))
+        || (supportsResolution !== undefined && typeof supportsResolution !== "boolean")
+        || (supportsAspectRatio !== undefined && typeof supportsAspectRatio !== "boolean")) {
+      throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
+    }
+    const geometry = item.capabilities.geometry === undefined ? undefined
+      : isRecord(item.capabilities.geometry) ? {
+        aspectRatios: optionalStringList(item.capabilities.geometry.aspectRatios, "aspectRatios"),
+        resolutions: optionalStringList(item.capabilities.geometry.resolutions, "resolutions"),
+      } : undefined;
+    if (item.capabilities.geometry !== undefined && !geometry) {
+      throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
+    }
+    providers.push({
+      id: item.id,
+      models: optionalStringList(item.models, "models"),
+      capabilities: {
+        edit: {
+          enabled,
+          ...(maxInputImages !== undefined ? { maxInputImages } : {}),
+          ...(supportsResolution !== undefined ? { supportsResolution } : {}),
+          ...(supportsAspectRatio !== undefined ? { supportsAspectRatio } : {}),
+        },
+        ...(geometry ? { geometry } : {}),
+      },
+    });
+  }
+  return providers;
+}
 export async function readChatState(agentId: string): Promise<ChatState> {
   const agents = await readAgentLocations();
   if (!agents.some(a => a.id === agentId)) throw new InputError("AGENT_NOT_FOUND", "The current conversation Agent does not exist.");
@@ -17,8 +78,7 @@ export async function readChatState(agentId: string): Promise<ChatState> {
     }),
     runOpenClawJson(["infer", "image", "providers", "--agent", agentId, "--json"]),
   ]);
-  if (!Array.isArray(inventory)) throw new InputError("CONFIG_INVALID", "Unsupported native image provider inventory.");
-  return { agents, skills, providers: inventory.filter(p => p.available && p.configured) };
+  return { agents, skills, providers: parseProviderInventory(inventory) };
 }
 
 function checkedDirectory(workspace: string, directory: string): string {
@@ -130,14 +190,22 @@ export function releaseReferences(agent: AgentLocation, token: string) {
   if (!manifestStat.isFile() || manifestStat.isSymbolicLink() || manifestStat.size > 8192) {
     throw new InputError("INPUT_INVALID", "Invalid reference manifest file.");
   }
-  const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  if (manifest.kind !== "stella-reference-snapshot" || manifest.schemaVersion !== 1 || manifest.agentId !== agent.id ||
-      manifest.token !== token || !Array.isArray(manifest.files) || manifest.files.length < 1 || manifest.files.length > 5 ||
-      !manifest.files.every((name: unknown) => typeof name === "string" && /^ref-[0-4]\.(jpg|png|webp)$/.test(name)) ||
-      fs.readdirSync(directory).some(name => name !== "manifest.json" && !manifest.files.includes(name))) {
+  let parsed: unknown;
+  try { parsed = JSON.parse(fs.readFileSync(manifestFile, "utf8")); }
+  catch { throw new InputError("INPUT_INVALID", "Invalid reference manifest file."); }
+  const files = isRecord(parsed)
+    && parsed.kind === "stella-reference-snapshot"
+    && parsed.schemaVersion === 1
+    && parsed.agentId === agent.id
+    && parsed.token === token
+    && Array.isArray(parsed.files)
+    && parsed.files.length >= 1 && parsed.files.length <= 5
+    && parsed.files.every((name): name is string => typeof name === "string" && /^ref-[0-4]\.(jpg|png|webp)$/.test(name))
+    ? parsed.files : undefined;
+  if (!files || fs.readdirSync(directory).some(name => name !== "manifest.json" && !files.includes(name))) {
     throw new InputError("INPUT_INVALID", "Reference manifest does not match this Agent or contains unexpected files.");
   }
-  for (const name of [...manifest.files, "manifest.json"]) {
+  for (const name of [...files, "manifest.json"]) {
     checkedDirectory(workspace, directory);
     const file = path.join(directory, name);
     if (!fs.existsSync(file)) continue;

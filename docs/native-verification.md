@@ -141,3 +141,45 @@
 - 原验收包、accepted.json、哈希清单及 12/13 续传记录完整保留，仍对应重构前的暂存内容。本轮没有替换已安装 skill，也没有将重构后的源码套用到旧上传记录；后续若发布本轮源码，必须重新暂存并以新指纹追踪，不能把旧续传进度当作新包的上传结果。
 - 收尾逐项核对 out/ 原有 93 个文件的路径与 SHA256，全部一致。新临时白名单包的 13 项哈希、入口加载、零运行依赖及独立包官方 runtime 离线验证均通过，随后仅删除本轮新建的暂存包。
 - Standards 与 Spec 分别只读复核，均无发现；未发现功能倒退、越界清理或文档与本轮实现不一致。TypeScript 未使用变量/参数检查与 git diff --check 通过。
+
+## Darwin 本机 2.0.0 安装验收（2026-11-02）
+
+宿主：OpenClaw `2026.10.8`，macOS Darwin，Node `24.22.1`，Agent `main`，Gateway loopback `127.0.0.1:18789`。聊天验收只走 Web Control UI，不走 Telegram 等渠道。未发布 ClawHub，未把 token/key 写入仓库。
+
+### 测试修复
+
+- 根因是 macOS `os.tmpdir()` 为 `/var/folders/...`，`realpath` 为 `/private/var/folders/...`。生产仍不对授权根做 realpath，只改测试：`tests/avatar-security.test.ts` 在 `mkdtemp` 后立刻 `realpathSync`；`tests/chat.test.ts` 的 EACCES 用例按 `scripts/chat.ts` 对齐 `realpathSync(workspace)` 再拼 `stella-selfie`。
+- `npm test` **109 通过**；`npm run build` 通过。
+
+### 安装与配置迁移
+
+- 旧安装 1.3.3 完整备份到 `~/.openclaw/backups/stella-selfie-1.3.3-before-2.0.0-20261102-101408`，`openclaw.json` 备份到同目录带同一时间戳的副本。
+- `npm run sync:local -- --agent main` 安装到 `~/.openclaw/workspace/main/skills/stella-selfie`：版本 2.0.0，13 个运行白名单文件，无 `dist/scripts/providers`，无运行时 npm 依赖。旧副本仍留在 `~/.openclaw/workspace/skills/stella-selfie`，未覆盖。
+- 删除 `skills.entries.stella-selfie.env.Provider`（原为 `laozhang`）；不删除用户已有 key 字段，也不把 skill key 当成宿主原生 Google 认证。将 `stella-selfie` 加入 `agents.entries.main.skills`，否则会被 agent filter 挡住。
+- main 的 `IDENTITY.md` 当时没有 Avatar；复制了 `avatars/stella.jpg` 与 `1.jpg` 并补了 Avatar/AvatarsDir。Gateway 重载后 skill 快照生效。宿主曾记录 `Blocked skill env overrides for GEMINI_API_KEY/LAOZHANG_API_KEY/FAL_KEY`，符合预期：生图走宿主 native Google。
+
+### 无生图协议
+
+- `npm run smoke -- --agent main`：三种模式 prepare/release，2 张参考图、Google Pro、2K、不生图。
+- `openclaw infer image providers --agent main --json`：google 已配置，模型含 `gemini-3-pro-image`。
+- 已安装副本对 OpenClaw 2026.10.8 的离线 bili runtime 通过：单图 Buffer、不落盘。
+- 已安装 `skill.js prepare` + `release` 通过；`--save-dir` / `count` / `target` 明确失败。
+
+### Web 聊天一次真实生图
+
+- 独立会话 `c6dd4a5c3f9d43fd8f448cc49b19afbd`（标题：生成本机自拍图片测试），请求 2K、不指定画幅、只生成一张。
+- 一次原生 `image_generate`（run `6de53a4d-...:ok`）成功；附件 `image-1.jpg`，JPEG 2,253,183 字节，1686×2528，SHA256 `2cde9ab376db428ce2a37bae21cbed1b9c8b9c4107ffde8f08720a35e740703b`。无第二次生图，无跨渠道。
+- 偏差：Agent 走 Code Mode，两次 `skill.js prepare`（amber-cl / tidy-cor 均退出码 0）；`timeline_resolve` 被阻止（SKILL 允许跳过）；`skill.js --help` 退出码 2（CLI 无该用法，属探索失败）。成功后未调用 release，快照 `d62d9e49-452d-486d-94f9-27f1734c4baa-eBXcQn` 残留；验收结束时用已安装 `skill.js release` 清掉，未再触发生图。
+
+### bili 一次真实生图
+
+- 从已安装 `dist/scripts/bili.js` 加载 `generateForBili`，注入宿主公开 `config`、`runtime.agent`、`imageGeneration.generate`，以及 `listProviders` 原样转发（Stella 传 `{ cfg }`）。
+- 一次 generate 已派出 `google/gemini-3-pro-image`，被宿主 SSRF 拒绝：`generativelanguage.googleapis.com` 解析为 fake-IP `198.18.0.214`。日志：`blocked URL fetch (url-fetch) ... private/internal/special-use IP address`。
+- 按计划不重试、不改代理、不关 OpenClaw 安全检查。推断适配器错误为 `PERMISSION_DENIED` / stage `generate` / outcome `unknown`。无 Buffer 落盘、无 material 文件、无自动聊天交付。
+- `listProviders({ cfg })` 仍能找到 google，因此失败发生在 generate 而不是校验；同函数读 `{ config }` 时列表更窄（google/minimax/openai）。宿主公开类型字段是 `config`，Stella 传 `cfg`。
+
+### 收尾
+
+- 一次性探针 `/tmp/stella-bili-live-once.mjs`、`/tmp/stella-dashboard-url.txt` 已删。安装目录与备份保留。原始证据在 git 忽略的 `out/acceptance-2.0.0-darwin/`。
+- **结果：Darwin 测试全绿；2.0.0 已装到 main；无生图协议通过；Web 聊天一次 Google 2K 生图成功；bili 内存接口一次真实 generate 因 fake-IP 被宿主拦截。未 commit、未 push、未发布。**
+

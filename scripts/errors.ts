@@ -1,3 +1,19 @@
+const LOCAL_ACTION_HINTS = {
+  INPUT_INVALID: "请检查请求字段、分辨率和画幅。",
+  CONFIG_INVALID: "请检查 Stella 的 Google 模型、参考图数量及授权目录配置。",
+  AGENT_NOT_FOUND: "请检查绑定的 Agent ID 是否存在。",
+  IDENTITY_UNREADABLE: "请检查绑定 Agent 的工作区与 IDENTITY.md。",
+  NO_VALID_REFERENCE: "请在授权目录中提供至少一张有效的 JPEG、PNG 或 WebP 参考图。",
+  OUTPUT_INVALID: "请由调用方决定是否重新请求；不要假定结果未生成。",
+} as const;
+
+/** Local validation hints. Do not reuse upstream Google/network classification. */
+export function localActionHint(code: string): string {
+  return Object.hasOwn(LOCAL_ACTION_HINTS, code)
+    ? LOCAL_ACTION_HINTS[code as keyof typeof LOCAL_ACTION_HINTS]
+    : "请检查请求、Agent 绑定及参考图配置。";
+}
+
 /** Safe workflow errors. Never return upstream response text or credentials. */
 export function normalizeNativeError(error: unknown): { code: string; message: string; actionHint: string } {
   const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
