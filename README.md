@@ -20,7 +20,7 @@ clawhub install stella-selfie
 
 Verified with OpenClaw 2026.10.9. Use a compatible host that exposes `image_generate`, provider inventory and Agent resolvers, plus a host-supported Node version (baseline `>=24.22.1 <25` or `>=26.12.1`). The runtime has no npm dependencies. Configure the selected Agent's native Google provider/auth through OpenClaw; old skill-only keys are not migrated automatically.
 
-Install in the intended host / profile / workspace scope. The initiating turn needs `image_generate`, file writing for the request JSON, process execution for reference preparation/cleanup, and access to the actual Agent workspace.
+Install in the intended host, profile, and workspace scope. The turn that starts generation needs `image_generate`, file writing for the request JSON, process execution for reference preparation/cleanup, and access to the actual Agent workspace.
 
 > **Windows PowerShell**: prefix a full Node executable path with `&`, and delete request files with `Remove-Item -LiteralPath`. Finish preparation/cleanup processes before advancing; a process-completion notice is not an image-completion event.
 
@@ -45,7 +45,7 @@ Put non-sensitive values under `skills.entries.stella-selfie.config`:
 | `AvatarMaxRefs` | `3` | Maximum local references to blend (current Google host max is 5) |
 | `AvatarAllowedRoots` | workspace `assets/` and `avatars/` | Nonempty absolute-directory array that **replaces** the defaults |
 
-`AvatarBlendEnabled` / `AvatarMaxRefs` / `AvatarAllowedRoots` still accept legacy env values. Precedence: config → process env → skill env → defaults. Outward symlinks/junctions do not authorize their targets.
+`AvatarBlendEnabled` / `AvatarMaxRefs` / `AvatarAllowedRoots` still accept legacy env values. Precedence: config → process env → skill env → defaults. Symlinks/junctions that point outside the workspace do not authorize their targets.
 
 ### 2. IDENTITY.md
 
@@ -91,7 +91,7 @@ is incomplete, explain what is missing before generating or sending an image.
 
 Talk to the agent in natural language:
 
-- “Send a selfie” — default mirror, or an eligible timeline scene
+- “Send a selfie” — default mirror selfie; if the request has no scene details and timeline is available, it may use that scene
 - “Send a cafe window selfie, 4K”
 - “Send a third-person photo, 3:4”
 - “Show me what you look like on the beach”
@@ -110,24 +110,24 @@ Include an aspect ratio only when the user asked for one. Stella never infers it
 
 ### Timeline continuity
 
-When the user makes a `Sparse` current-state request — “send a selfie”, “send a photo”, “show me what you look like now” — or clearly refers back to one recently resolved scene in this conversation, Stella can use `timeline_resolve` if it is available:
+When the user asks for a photo without scene details (`Sparse`) — “send a selfie”, “send a photo”, “show me what you look like now” — or clearly refers back to one recently resolved scene in this conversation, Stella can use `timeline_resolve` if it is available:
 
 - **Same-moment continuity**: if chat says she is organizing work in her study, the photo can stay in that study, that outfit, that state.
-- **Sparse prompts can bloom**: place, activity, mood, outfit and time of day can fill in, so you do not have to write the full prompt.
-- **Details that feel casually snapped**: window seats, desk props, street railings, coffee cups — instead of a hollow template.
+- **Sparse requests still get filled in**: place, activity, mood, outfit and time of day can fill in, so you do not have to write the full prompt.
+- **Casual snapshot details**: window seats, desk props, street railings, coffee cups — instead of a generic template.
 - **Light and framing**: the same “afternoon at a cafe” can be window backlight, warm indoor light, or a handheld close-up.
-- **Your wording wins**: a clear standalone scene, outfit, location, activity or camera request is used as-is. Timeline does not take over.
+- **User details take priority**: a clear standalone scene, outfit, location, activity or camera request is used as-is. Timeline does not take over.
 - Works without timeline; you just will not get these extras.
 
 Timeline is optional and best-effort. Missing or failed data falls back to normal defaults. City/date/time anchors are scene context, not proof of live weather; Stella enables no search-grounding tool. Full rules: [timeline integration](references/timeline-integration.md).
 
-The helper validates references and supplies native `image_generate` arguments. Chat uses the current conversation's actual Agent ID; chat has no main fallback. The host generates asynchronously and delivers to this conversation. Input snapshots are released in the initiating turn after the tool reads them. Failed preparation cleans up files it created, including partial writes; incomplete cleanup reports the directory for explicit cleanup. No polling, second send, cross-channel target, batch or Stella retry. Host attachments follow host retention; Stella does not promise they stay forever.
+The helper validates references and supplies native `image_generate` arguments. Chat uses the current conversation's actual Agent ID; chat has no main fallback. The host generates asynchronously and delivers to this conversation. Input snapshots are released in that same turn after the tool reads them. Failed preparation cleans up files it created, including partial writes; incomplete cleanup reports the directory for explicit cleanup. No polling, second send, cross-channel target, batch or Stella retry. Host attachments follow host retention; Stella does not promise they stay forever.
 
 ## Same-host plugin
 
-Need the photo as bytes for preview, storage or publishing? Call `generateForPlugin`. The caller supplies the Stella skill directory and an optional `agentId` (exact `main` when omitted; missing bindings fail). This plugin default does not apply to chat. The adapter resolves the actual Agent identity, workspace and auth directory, calls `api.runtime.imageGeneration.generate` once, and returns `Buffer` + MIME or a safe error with generation outcome. Stella creates no material ID, path or persistent file.
+Need the photo as bytes for preview, storage or publishing? Call `generateForPlugin`. The caller supplies the Stella skill directory and an optional `agentId` (uses exact `main` when omitted; missing bindings fail). This plugin default does not apply to chat. The adapter resolves the actual Agent identity, workspace and auth directory, calls `api.runtime.imageGeneration.generate` once, and returns `Buffer` + MIME or a safe error with generation outcome. Stella creates no material ID, path or persistent file.
 
-See [the in-process adapter guide](references/plugin-integration.md). Calling plugins live outside this repository.
+See [the in-process adapter guide](references/plugin-integration.md). Calling plugins are not in this repository.
 
 ## 2.0 notes
 

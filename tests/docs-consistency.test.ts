@@ -115,9 +115,9 @@ describe("selfie/timeline documentation contract", () => {
     expect(readme).toContain("chat has no main fallback");
     expect(readme).toContain("exact `main` when omitted");
     expect(readme).toContain("This plugin default does not apply to chat.");
-    expect(readmeCn).toContain("没有 main 回退");
-    expect(readmeCn).toContain("未配置精确使用 `main`");
-    expect(readmeCn).toContain("这条 plugin 缺省不适用于聊天");
+    expect(readmeCn).toContain("不会回退到 `main`");
+    expect(readmeCn).toContain("未传 `agentId` 时使用 `main`");
+    expect(readmeCn).toContain("这条 plugin 默认不适用于聊天");
 
     expect(skill).toContain("Failed preparation attempts to remove every file it created");
     expect(readme).toContain("Failed preparation cleans up files it created, including partial writes");
