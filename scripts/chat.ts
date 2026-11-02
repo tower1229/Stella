@@ -148,7 +148,8 @@ export function prepareChat(request: ChatRequest, state: ChatState) {
     writeSnapshot("manifest.json", JSON.stringify({ schemaVersion: 1, kind: "stella-reference-snapshot", agentId: request.agentId, token, files }));
     const { modelOverride, prompt, count, resolution, aspectRatio } = prepared.params;
     return { schemaVersion: 1, ok: true, agentId: request.agentId, referenceToken: token,
-      toolInput: { model: modelOverride, prompt, count, resolution, images: files.map(name => path.join(directory, name)), ...(aspectRatio ? { aspectRatio } : {}) },
+      toolInput: { model: modelOverride, prompt, count, images: files.map(name => path.join(directory, name)),
+        ...(resolution !== undefined ? { resolution } : {}), ...(aspectRatio ? { aspectRatio } : {}) },
       ...(caption !== undefined ? { caption } : {}),
     };
   } catch (error) {

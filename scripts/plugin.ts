@@ -17,7 +17,7 @@ export interface NativeGenerateParams<C> {
   autoProviderFallback: false;
   inputImages: ImageAsset[];
   count: number;
-  resolution: Resolution;
+  resolution?: Resolution;
   aspectRatio?: string;
 }
 export interface ImageProvider {
@@ -105,6 +105,34 @@ function validateRequest(value: unknown): ImageRequest {
   }
   return r as unknown as ImageRequest;
 }
+function parseModelRef(model: unknown): { model: string; providerId: string; modelId: string } {
+  if (typeof model !== "string") {
+    throw new InputError("CONFIG_INVALID", "Use a host native image model as provider/model.");
+  }
+  const slash = model.indexOf("/");
+  if (slash <= 0 || slash === model.length - 1 || /\s/.test(model)) {
+    throw new InputError("CONFIG_INVALID", "Use a host native image model as provider/model.");
+  }
+  return { model, providerId: model.slice(0, slash), modelId: model.slice(slash + 1) };
+}
+function geometrySupported(
+  declared: boolean | undefined, allowed: readonly string[] | undefined, value: string,
+): boolean {
+  if (declared === false) return false;
+  if (allowed) return allowed.includes(value);
+  return declared === true;
+}
+function supportsResolution(provider: ImageProvider, resolution: string): boolean {
+  return geometrySupported(
+    provider.capabilities.edit.supportsResolution, provider.capabilities.geometry?.resolutions, resolution);
+}
+function supportsAspectRatio(provider: ImageProvider, aspectRatio: string): boolean {
+  return geometrySupported(
+    provider.capabilities.edit.supportsAspectRatio, provider.capabilities.geometry?.aspectRatios, aspectRatio);
+}
+function modelAccepted(models: readonly string[] | undefined, modelId: string, fullRef: string): boolean {
+  return !!models && (models.includes(modelId) || models.includes(fullRef));
+}
 function settings(config: unknown, workspace: string) {
   const cfg = object(config);
   const entry = object(object(object(cfg.skills).entries)["stella-selfie"]);
@@ -114,19 +142,18 @@ function settings(config: unknown, workspace: string) {
   const options = object(entry.config), legacy = object(entry.env);
   const get = (key: string, fallback: unknown) => Object.hasOwn(options, key) ? options[key]
     : process.env[key] ?? legacy[key] ?? fallback;
-  const provider = process.env.Provider ?? legacy.Provider;
-  if (provider !== undefined && provider !== "gemini") {
-    throw new InputError("CONFIG_INVALID", "This integration supports only Google's official image provider; migrate the legacy Provider setting.");
+  const legacyProvider = process.env.Provider ?? legacy.Provider;
+  if (legacyProvider !== undefined && legacyProvider !== "gemini") {
+    throw new InputError("CONFIG_INVALID", "Remove the legacy Provider setting and use config.model for the host native image model.");
   }
-  const model = Object.hasOwn(options, "model") ? options.model : "google/gemini-3-pro-image";
+  const parsed = parseModelRef(Object.hasOwn(options, "model") ? options.model : "google/gemini-3-pro-image");
   const blend = get("AvatarBlendEnabled", true);
   const max = get("AvatarMaxRefs", 3);
   const rawRoots = get("AvatarAllowedRoots", undefined);
-  if (typeof model !== "string" || !/^google\/[^/\s]+$/.test(model) ||
-      !(typeof blend === "boolean" || (typeof blend === "string" && ["true", "false"].includes(blend.toLowerCase()))) ||
+  if (!(typeof blend === "boolean" || (typeof blend === "string" && ["true", "false"].includes(blend.toLowerCase()))) ||
       !(typeof max === "number" || (typeof max === "string" && /^\d+$/.test(max))) ||
-      !Number.isInteger(Number(max)) || Number(max) < 1 || Number(max) > 5) {
-    throw new InputError("CONFIG_INVALID", "Use a Google image model, a boolean AvatarBlendEnabled and AvatarMaxRefs between 1 and 5.");
+      !Number.isInteger(Number(max)) || Number(max) < 1) {
+    throw new InputError("CONFIG_INVALID", "Use a host native image model, a boolean AvatarBlendEnabled and a positive integer AvatarMaxRefs.");
   }
   let roots: unknown = rawRoots;
   if (typeof roots === "string") {
@@ -146,7 +173,7 @@ function settings(config: unknown, workspace: string) {
         return real;
       });
   } catch { throw new InputError("CONFIG_INVALID", "An authorized reference directory is unavailable."); }
-  return { model, blend: String(blend).toLowerCase() !== "false", max: Number(max), allowedRoots };
+  return { ...parsed, blend: String(blend).toLowerCase() !== "false", max: Number(max), allowedRoots };
 }
 
 /** Shared validated inputs for native chat tools and in-process plugin calls. */
@@ -163,16 +190,14 @@ export function prepareImageRequest<C>(
     try { workspace = fs.realpathSync(api.runtime.agent.resolveAgentWorkspaceDir(api.config, agentId)); }
     catch { throw new InputError("IDENTITY_UNREADABLE", "The bound Agent workspace is unavailable."); }
     const config = settings(api.config, workspace);
-    const provider = api.runtime.imageGeneration.listProviders({ config: api.config }).find(p => p.id === "google");
-    if (!provider?.capabilities.edit.enabled || !provider.models?.includes(config.model.slice("google/".length)) ||
-        (provider.capabilities.edit.maxInputImages !== undefined && config.max > provider.capabilities.edit.maxInputImages)) {
-      throw new InputError("CONFIG_INVALID", "The selected Google model or reference count is unsupported by this host.");
+    const provider = api.runtime.imageGeneration.listProviders({ config: api.config }).find(p => p.id === config.providerId);
+    const maxInputImages = provider?.capabilities.edit.maxInputImages;
+    const maxRefs = maxInputImages !== undefined ? Math.min(16, maxInputImages) : 5;
+    if (!provider?.capabilities.edit.enabled || !modelAccepted(provider.models, config.modelId, config.model) || config.max > maxRefs) {
+      throw new InputError("CONFIG_INVALID", "The selected native image model or reference count is unsupported by this host.");
     }
-    const resolution = request.resolution ?? "2K";
-    if (provider.capabilities.edit.supportsResolution === false ||
-        (provider.capabilities.geometry?.resolutions && !provider.capabilities.geometry.resolutions.includes(resolution)) ||
-        (request.aspectRatio !== undefined && (provider.capabilities.edit.supportsAspectRatio === false ||
-          !provider.capabilities.geometry?.aspectRatios?.includes(request.aspectRatio)))) {
+    if ((request.resolution !== undefined && !supportsResolution(provider, request.resolution)) ||
+        (request.aspectRatio !== undefined && !supportsAspectRatio(provider, request.aspectRatio))) {
       throw new InputError("INPUT_INVALID", "The selected model does not support the requested resolution or aspect ratio.");
     }
     const agentDir = api.runtime.agent.resolveAgentDir(api.config, agentId);
@@ -190,7 +215,9 @@ export function prepareImageRequest<C>(
     const inputImages: ImageAsset[] = references.map(({ buffer, mimeType }) => ({ buffer, mimeType }));
     const params: NativeGenerateParams<C> = {
       cfg: api.config, agentDir, prompt: request.prompt, modelOverride: config.model,
-      autoProviderFallback: false, count: 1, resolution, inputImages,
+      autoProviderFallback: false, count: 1, inputImages,
+      ...(request.resolution !== undefined ? { resolution: request.resolution }
+        : supportsResolution(provider, "2K") ? { resolution: "2K" as const } : {}),
       ...(request.aspectRatio !== undefined ? { aspectRatio: request.aspectRatio } : {}),
     };
     return { agentId, workspace, params };
@@ -208,9 +235,10 @@ export async function generateForPlugin<C>(
     generationOutcome = "unknown";
     const result = await api.runtime.imageGeneration.generate(params);
     generationOutcome = "succeeded";
-    if (result.provider !== "google" || result.model !== params.modelOverride.slice("google/".length) ||
+    const { providerId, modelId, model } = parseModelRef(params.modelOverride);
+    if (result.provider !== providerId || !modelAccepted([result.model], modelId, model) ||
         result.ignoredOverrides.length > 0 || result.images.length !== 1 || !Buffer.isBuffer(result.images[0].buffer)) {
-      throw new InputError("OUTPUT_INVALID", "The native result did not satisfy the single-image Google request.");
+      throw new InputError("OUTPUT_INVALID", "The native result did not satisfy the single-image request.");
     }
     const image = result.images[0];
     // Native output limits belong to the host; the 20 MiB reference cap is not an output cap.

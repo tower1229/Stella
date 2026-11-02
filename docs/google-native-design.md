@@ -14,7 +14,7 @@
 
 | 项目 | 决定 |
 | --- | --- |
-| 供应商 | 下一版只用 Google 官方 provider/auth；不维护供应商 SDK，不回退 fal、laozhang 或其他供应商 |
+| 供应商 | 默认 Google 官方原生模型；允许换成宿主已配置且 `edit.enabled` 的其他原生生图模型。不维护 skill 自带供应商 SDK，不把旧 fal/laozhang skill 路径加回来 |
 | Stella 形态 | 轻量 skill 加必要辅助模块，不新增 Stella plugin、队列或服务 |
 | 普通自拍 | 原生 image_generate 异步返回当前请求会话；不指定 channel/target，不跨会话或跨渠道发送，不支持额外保存副本 |
 | 同宿主 plugin | 能按自身任务请求生成新图；图片只返回调用方，不由 Stella 单独在聊天展示 |
@@ -25,8 +25,8 @@
 | 数量 | 一次只生成一张；不提供批量、部分成功或自动补图 |
 | 返回时机 | 调用方 await 单次生成完成，拿图片字节或明确错误；不新增任务 ID/状态查询/领取接口 |
 | 重试 | Stella 不追加生成重试，不自动补图，不因后处理失败重新生成；宿主/provider 内部策略分别看待 |
-| 默认模型 | google/gemini-3-pro-image，允许配置其他宿主支持的 Google 图片模型；显式传模型 |
-| 分辨率 | 默认 2K；明确提供时支持 1K、2K、4K |
+| 默认模型 | google/gemini-3-pro-image，允许配置宿主 listProviders 中已声明、可参考图编辑的 `provider/model`；显式传模型，关闭 autoProviderFallback |
+| 分辨率 | 模型支持时默认 2K；明确提供时支持 1K、2K、4K；不支持 resolution 的模型默认不传 |
 | 画幅 | 默认不传 aspectRatio 或 size；只有明确提供比例才传，不从 prompt 推断 |
 | 参考图 | 至少一张有效本地图；额外目录可选，主图优先、真实路径去重、额外图按时间新到旧，默认最多三张 |
 | 描述 | 无内容描述字段，无额外图片理解调用 |
@@ -61,12 +61,11 @@
   "schemaVersion": 1,
   "agentId": "main",
   "prompt": "A selfie of this person, sitting by a cafe window, looking into the lens.",
-  "resolution": "2K",
   "aspectRatio": "3:4"
 }
 ```
 
-prompt 必填；agentId 可省略，缺省 main；resolution 可省略，缺省 2K；aspectRatio 只有明确提供才出现。模型来自 Stella 配置。拒绝未知字段和无效类型，不接受后静默忽略 count、channel、target、saveDir 或 description。
+prompt 必填；agentId 可省略，缺省 main；resolution 可省略，仅当所选模型支持 1K/2K/4K 时默认补 2K；aspectRatio 只有明确提供才出现。模型来自 Stella 配置。拒绝未知字段和无效类型，不接受后静默忽略 count、channel、target、saveDir 或 description。
 
 ### 成功返回
 
@@ -119,14 +118,14 @@ stage 为 validate/reference/generate；generationOutcome 为 not_started/succee
 
 | 字段 | 默认和规则 |
 | --- | --- |
-| model | google/gemini-3-pro-image，仅宿主 Google 图片 provider 声明的模型 |
+| model | google/gemini-3-pro-image，可换成宿主已声明且支持参考图编辑的原生模型 |
 | AvatarBlendEnabled | true；false 只用主图，主图无效失败，不转额外目录 |
-| AvatarMaxRefs | 3；正整数，当前 Google 上限五张，越界明确报错 |
+| AvatarMaxRefs | 3；正整数，上限为所选模型 `maxInputImages`（未知时保守 5，已知不超过 16），越界明确报错，不自动裁剪 |
 | AvatarAllowedRoots | 可选，非空绝对目录数组，替换默认允许根；默认仅实际工作区下 assets、avatars |
 
-AvatarBlendEnabled / AvatarMaxRefs / AvatarAllowedRoots 兼容旧环境配置，优先级为新 config → 进程 env → skill env → 默认值。旧根目录字符串按 JSON 数组解析，无效显式值失败而非扩大授权。旧 Provider=gemini 兼容，其他值要求迁移，不静默切换。
+AvatarBlendEnabled / AvatarMaxRefs / AvatarAllowedRoots 兼容旧环境配置，优先级为新 config → 进程 env → skill env → 默认值。旧根目录字符串按 JSON 数组解析，无效显式值失败而非扩大授权。旧 Provider 不再是选择器：`Provider=gemini` 忽略通过，其他值要求删除并改用 `config.model`。
 
-Google key 使用宿主原生 provider/auth，不放请求字段、命令行、身份文件或日志。旧 skill 专用 apiKey/GEMINI_API_KEY 不被假定已经迁移到原生认证。[Skills config](https://docs.openclaw.ai/tools/skills-config)
+认证使用所选模型对应的宿主原生 provider/auth，不放请求字段、命令行、身份文件或日志。旧 skill 专用 apiKey/GEMINI_API_KEY 不被假定已经迁移到原生认证。[Skills config](https://docs.openclaw.ai/tools/skills-config)
 
 ## 提示词及参考图的兼容规则
 
@@ -136,7 +135,7 @@ Google key 使用宿主原生 provider/auth，不放请求字段、命令行、�
 - 基础格式：`A mirror selfie of this person, [context], showing full body reflection.`、`A selfie of this person, [context], looking into the lens.`、`A natural third-person photo of this person, [context], natural composition, not a selfie.`；允许既有 timeline 融合，不用逐字正则限制自然语言。
 - 拍摄主体为助手/绑定人物。明确自拍不得被 timeline 改成第三人称；普通聊天由当前 Agent 按 skill 组装，调用方根据任务及绑定资料组装；执行层原样传 prompt。
 - caption 仍是当前会话回复配文，不混入 prompt、不变成生成描述；调用方的发布配文由调用方管理。
-- 保留自然语言分辨率识别及明确 1K/2K/4K；默认 2K。Google 旧路径本来就不指定 aspectRatio，本次保留默认行为。
+- 保留自然语言分辨率识别及明确 1K/2K/4K；仅当所选模型支持 resolution 时默认 2K。Google 旧路径本来就不指定 aspectRatio，本次保留默认行为。
 
 ### 可选 timeline
 
@@ -178,7 +177,7 @@ scripts/chat.ts 复用 plugin 模块的参数、Agent 与参考图校验，通�
 
 ### 已完成
 
-- scripts/plugin.ts：稳定内存交接、Agent 绑定、Google 参数校验、参考图 Buffer、单图输出验证、明确错误、不重试、不落盘。
+- scripts/plugin.ts：稳定内存交接、Agent 绑定、按宿主 provider 能力校验、参考图 Buffer、单图输出验证、明确错误、不重试、不落盘。
 - scripts/images.ts / avatars.ts：每次调用显式授权根和诊断通道，避免并行 Agent 配置互相污染。
 - scripts/chat.ts / native-cli.ts / skill.ts：普通聊天 prepare/release、实际 Agent 路径、参考图快照和原生工具参数；不生成额外副本。
 - references/plugin-integration.md：调用示例、成功/失败对象和调用方职责；发布白名单包含新模块与说明。
@@ -191,10 +190,10 @@ scripts/chat.ts 复用 plugin 模块的参数、Agent 与参考图校验，通�
 | 三种拍摄模式、caption、timeline | 保留；SKILL、中英文 README、timeline 同步更新，保留可选 SOUL 片段 |
 | 身份 Markdown 写法、主图/混合/排序/去重 | 保留；聊天与同宿主 plugin 使用共享实现 |
 | 授权根、20 MiB、文件签名/替换检查 | 保留；不能以原生 SDK 存在为由删除 |
-| 1K/2K/4K、默认未指定比例 | 保留；下一版默认 2K |
+| 1K/2K/4K、默认未指定比例 | 保留；模型支持 resolution 时默认 2K，否则不传 |
 | 普通自拍显式持久副本 | 用户最新明确取消；不实现 CLI 保存分支 |
 | 发布白名单、SHA256、安装与同步、可选 SOUL | 保留；不覆盖用户人格文件，不夹带参考图/素材/凭据 |
-| fal/laozhang、自有 SDK/重试、旧 sender | 按已确认决定退役，移除运行依赖 |
+| fal/laozhang skill SDK、自有重试、旧 sender | 按已确认决定退役，移除运行依赖；宿主原生 fal 等可 edit 模型可通过 config.model 选用 |
 | 批量、跨渠道目标、任意 save-dir | 已确认收窄；旧调用给明确迁移提示，不保留误导示例 |
 
 首版以 OpenClaw 2026.10.9 为核对/验收基线，Node 版本与宿主一致。运行包无 npm 依赖，独立白名单暂存；本地同步支持明确 Agent 或 skills 安装目录，不再依赖 WSL、默认工作区或运行时 npm install。

@@ -1,6 +1,6 @@
 ---
 name: stella-selfie
-description: Generate persona-consistent selfies and third-person photos with OpenClaw's native Google image generation; deliver to the current conversation or return image bytes to a same-host plugin.
+description: Generate persona-consistent selfies and third-person photos with OpenClaw native image generation; deliver to the current conversation or return image bytes to a same-host plugin.
 metadata:
   openclaw:
     requires:
@@ -56,11 +56,11 @@ Interpret explicit user requirements first. Use `mirror` by default for outfit /
 
 | User says | Resolution |
 | --- | --- |
-| default, 2k, 2048, medium res, 中等分辨率 | `2K` |
+| 2k, 2048, medium res, 中等分辨率 | `2K` |
 | 1k, low res, 低分辨率 | `1K` |
 | 4k, high res, ultra, 超清, 高分辨率 | `4K` |
 
-Default model: `google/gemini-3-pro-image`. Do not infer aspectRatio from prompt text: include it only when explicitly supplied. Do not send size or force a default ratio. Each request generates exactly one image.
+Default model: `google/gemini-3-pro-image`. Other host-configured native models are allowed only when they support reference-image editing. Do not infer aspectRatio from prompt text: include it only when explicitly supplied. Do not send size or force a default ratio. Omit resolution from the request JSON unless the user asked for 1K, 2K or 4K; the helper applies 2K only when the selected model supports it. Each request generates exactly one image.
 
 ## Step-by-Step Instructions
 
@@ -97,12 +97,11 @@ Use the file-writing tool to create a UTF-8 JSON request in a unique temporary f
 {
   "schemaVersion": 1,
   "agentId": "<actual current conversation Agent>",
-  "prompt": "<complete Stella prompt>",
-  "resolution": "2K"
+  "prompt": "<complete Stella prompt>"
 }
 ```
 
-Optional fields: explicit aspectRatio and user-provided caption. Caption is reply text, not part of the image prompt. Run the preparation helper with the actual request file path as an argument:
+Optional fields: explicit resolution, explicit aspectRatio and user-provided caption. Caption is reply text, not part of the image prompt. Run the preparation helper with the actual request file path as an argument:
 
 ```text
 node "{baseDir}/dist/scripts/skill.js" prepare "<request.json>"
@@ -122,7 +121,7 @@ Use the same supported Node executable for release. If the required Node/CLI/con
 
 ### Step 5: Call Native Image Generation Once
 
-Call `image_generate` once using the returned toolInput exactly: explicit Google model, full prompt, count=1, resolution and prepared images; aspectRatio only when requested. Do not use message send, another provider, an SDK, CLI generation, or a second call to regenerate.
+Call `image_generate` once using the returned toolInput exactly: the prepared model, full prompt, count=1, prepared images, and any resolution or aspectRatio the helper included. Do not swap the model or use message send, an SDK, CLI generation, or a second call to regenerate.
 
 In the supported host, image_generate loads references before it returns its async task ID. After that invocation returns (including an error), release only this request's reference snapshots in the initiating turn:
 
@@ -140,7 +139,7 @@ Later process-completion notices are not image-completion events. Handle only th
 
 ## Configuration
 
-Requires OpenClaw 2026.10.9 or a compatible host exposing the native image tool, provider inventory and Agent resolvers; use a Node version supported by that host (verified baseline: >=24.22.1 <25 or >=26.12.1). Configure the host's native Google authentication for the selected Agent. Stella has no provider SDK dependencies or skill-specific provider-key install steps.
+Requires OpenClaw 2026.10.9 or a compatible host exposing the native image tool, provider inventory and Agent resolvers; use a Node version supported by that host (verified baseline: >=24.22.1 <25 or >=26.12.1). Configure the selected Agent's host-native image provider authentication. Stella has no provider SDK dependencies or skill-specific provider-key install steps.
 
 In the actual Agent workspace's IDENTITY.md:
 
@@ -161,13 +160,13 @@ Configure non-sensitive values under `skills.entries.stella-selfie.config`:
 }
 ```
 
-Optional AvatarAllowedRoots is a nonempty array of absolute directories replacing the defaults. Old AvatarBlendEnabled/AvatarMaxRefs/AvatarAllowedRoots env settings remain readable: config → process env → skill env → default. Legacy Provider=gemini is accepted; other old provider selections require migration. Old skill-only Google keys are not assumed to configure the host native provider.
+Optional AvatarAllowedRoots is a nonempty array of absolute directories replacing the defaults. Old AvatarBlendEnabled/AvatarMaxRefs/AvatarAllowedRoots env settings remain readable: config → process env → skill env → default. Remove leftover `Provider` fields; `Provider=gemini` is ignored, other legacy values must be deleted. Use `config.model` instead. Old skill-only API keys are not assumed to configure the host native provider.
 
-References must be regular JPEG/PNG/WebP files, each at most 20 MiB, with valid signatures. Default allowed roots are assets/avatars inside the actual Agent workspace; outward symlinks/junctions are not implicitly authorized. Main Avatar is preferred, realpath duplicates removed, extras selected newest first (birthtime, then mtime/ctime fallback); default maximum three, current native Google maximum five. Blend disabled means main only.
+References must be regular JPEG/PNG/WebP files, each at most 20 MiB, with valid signatures. Default allowed roots are assets/avatars inside the actual Agent workspace; outward symlinks/junctions are not implicitly authorized. Main Avatar is preferred, realpath duplicates removed, extras selected newest first (birthtime, then mtime/ctime fallback); default maximum three, limited by the selected model's native `maxInputImages`. Blend disabled means main only. The selected model must be listed by the host and support reference-image editing.
 
 For chat, input snapshots preserve the validated bytes, but the native image tool may resize or re-encode them before upload, changing format, dimensions or fine detail. Original-byte upload is not guaranteed. The 20 MiB Stella input limit is separate from the host's media limits and optimization; requesting 4K output does not preserve reference resolution. The in-process plugin path passes validated buffers directly to the native runtime without this chat-tool optimization.
 
-The prompt and selected reference bytes go to Google's official API through OpenClaw. Generated media storage, retention and current-conversation delivery belong to the host. Stella creates no generated-image archive and does not delete host attachments or historical user files. It does not promise attachment availability forever.
+The prompt and selected reference bytes go to the configured native image provider through OpenClaw. Generated media storage, retention and current-conversation delivery belong to the host. Stella creates no generated-image archive and does not delete host attachments or historical user files. It does not promise attachment availability forever.
 
 Install with `clawhub install stella-selfie` in the intended host/profile/workspace scope. No npm runtime dependency installation is needed. An optional capability snippet ships at `{baseDir}/templates/SOUL.fragment.md`; do not overwrite the user's personality files.
 

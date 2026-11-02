@@ -1,7 +1,7 @@
 {
   "name": "stella-selfie",
-  "version": "2.0.0",
-  "description": "Persona-consistent Google-native images for the current OpenClaw conversation and same-host plugins.",
+  "version": "2.1.0",
+  "description": "Persona-consistent native images for the current OpenClaw conversation and same-host plugins.",
   "keywords": [
     "openclaw",
     "gemini",

@@ -2,13 +2,13 @@
 
 让 OpenClaw 助手真正「长得像自己」。
 
-Stella 用 Google 官方原生图片生成，按人设拍出外观一致的自拍和照片——不是随机换脸，也不是每次都是另一个人。支持直接自拍、镜面自拍、第三人称照片三种模式，可叠加多张本地参考图。聊天里的普通请求会把一张图发到当前会话；同宿主 plugin 则直接拿到图片 Buffer，由调用方自己做预览、存储和发布。
+Stella 用 OpenClaw 原生生图，按人设拍出外观一致的自拍和照片——不是随机换脸，也不是每次都是另一个人。默认 Gemini Pro，也可换成宿主已配置且能做参考图编辑的其他原生模型。支持直接自拍、镜面自拍、第三人称照片三种模式，可叠加多张本地参考图。聊天里的普通请求会把一张图发到当前会话；同宿主 plugin 则直接拿到图片 Buffer，由调用方自己做预览、存储和发布。
 
 |                     自拍照                     |                     镜像照                     |                       第三人称照片                       |
 | :--------------------------------------------: | :--------------------------------------------: | :------------------------------------------------------: |
 | ![Direct Selfie](./assets/Direct%20Selfie.jpg) | ![Mirror Selfie](./assets/Mirror%20Selfie.jpg) | ![Third-Person Photo](./assets/Third-Person%20Photo.jpg) |
 
-默认 `google/gemini-3-pro-image`、2K、单图，不指定画幅。Stella 不额外保存生成图片，即使用户明确要求副本。
+默认 `google/gemini-3-pro-image`；模型支持时默认 2K、单图、不指定画幅。Stella 不额外保存生成图片，即使用户明确要求副本。
 
 ## 安装
 
@@ -18,7 +18,7 @@ clawhub install stella-selfie
 
 > 或者从 [ClawHub](https://clawhub.ai/skills/stella-selfie) 下载安装包，手动安装。
 
-已验证 OpenClaw 2026.10.9。宿主须兼容 `image_generate`、provider 清单和 Agent 解析接口，并使用宿主支持的 Node 版本（基线 `>=24.22.1 <25` 或 `>=26.12.1`）。运行包没有 npm 依赖。通过 OpenClaw 原生 provider/auth 配置所选 Agent 的 Google 认证，旧的 skill 专用 key 不会自动迁移。
+已验证 OpenClaw 2026.10.9。宿主须兼容 `image_generate`、provider 清单和 Agent 解析接口，并使用宿主支持的 Node 版本（基线 `>=24.22.1 <25` 或 `>=26.12.1`）。运行包没有 npm 依赖。通过 OpenClaw 原生 provider/auth 配置所选 Agent 的生图认证，旧的 skill 专用 key 不会自动迁移。
 
 请安装到目标宿主、profile 和工作区作用域。本次请求需要 `image_generate`、写入请求 JSON、运行参考图准备/清理脚本的权限，并能读取实际 Agent 工作区。
 
@@ -40,9 +40,9 @@ clawhub install stella-selfie
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `model` | `google/gemini-3-pro-image` | 宿主原生 Google provider 声明支持的图片模型 |
+| `model` | `google/gemini-3-pro-image` | 宿主已声明、且支持参考图编辑的原生图片模型 |
 | `AvatarBlendEnabled` | `true` | 是否融合 `AvatarsDir` 里的额外参考图；`false` 时只用主图 `Avatar` |
-| `AvatarMaxRefs` | `3` | 最多融合多少张本地参考图（当前 Google 宿主上限 5） |
+| `AvatarMaxRefs` | `3` | 最多融合多少张本地参考图，上限为所选模型的 `maxInputImages` |
 | `AvatarAllowedRoots` | 工作区 `assets/`、`avatars/` | 非空绝对目录数组，**替换**默认允许根 |
 
 `AvatarBlendEnabled` / `AvatarMaxRefs` / `AvatarAllowedRoots` 仍可读旧环境变量。优先级：config → 进程 env → skill env → 默认值。指向工作区外的符号链接 / junction 不会自动授权其目标。
@@ -102,11 +102,11 @@ is incomplete, explain what is missing before generating or sending an image.
 
 | 用户说 | 分辨率 |
 | --- | --- |
-| （默认）、2k、2048、medium res、中等分辨率 | `2K` |
+| 2k、2048、medium res、中等分辨率 | `2K` |
 | 1k、low res、低分辨率 | `1K` |
 | 4k、high res、ultra、超清、高分辨率 | `4K` |
 
-只有用户明确指定画幅时才传入宽高比，不会从提示词里猜测。
+用户没提分辨率时不要写入请求；辅助脚本仅在所选模型支持时默认补 `2K`。只有用户明确指定画幅时才传入宽高比，不会从提示词里猜测。
 
 ### 与时间线联动
 
@@ -131,7 +131,7 @@ is incomplete, explain what is missing before generating or sending an image.
 
 ## 2.0 说明
 
-已退役：fal / laozhang、自有 provider SDK / skill 专用 key 安装、旧 sender、`channel` / `target` / `--save-dir` / `count`、生成图片备份和素材库管理。旧 `Provider=gemini` 兼容，其他值须移除或迁移。重复请求会发起新生成。
+已退役：skill 自带的 fal / laozhang SDK 和 skill 专用 key 安装、旧 sender、`channel` / `target` / `--save-dir` / `count`、生成图片备份和素材库管理。宿主原生 fal、OpenAI、MiniMax 等能做参考图编辑的模型可用 `config.model` 选择。删掉旧 `Provider` 字段，改用 `config.model`。重复请求会发起新生成。
 
 ```sh
 npm ci
