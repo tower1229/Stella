@@ -61,12 +61,11 @@
   "schemaVersion": 1,
   "agentId": "main",
   "prompt": "A selfie of this person, sitting by a cafe window, looking into the lens.",
-  "resolution": "2K",
   "aspectRatio": "3:4"
 }
 ```
 
-prompt 必填；agentId 可省略，缺省 main；resolution 可省略，缺省 2K；aspectRatio 只有明确提供才出现。模型来自 Stella 配置。拒绝未知字段和无效类型，不接受后静默忽略 count、channel、target、saveDir 或 description。
+prompt 必填；agentId 可省略，缺省 main；resolution 可省略，仅当所选模型支持 1K/2K/4K 时默认补 2K；aspectRatio 只有明确提供才出现。模型来自 Stella 配置。拒绝未知字段和无效类型，不接受后静默忽略 count、channel、target、saveDir 或 description。
 
 ### 成功返回
 
@@ -136,7 +135,7 @@ AvatarBlendEnabled / AvatarMaxRefs / AvatarAllowedRoots 兼容旧环境配置，
 - 基础格式：`A mirror selfie of this person, [context], showing full body reflection.`、`A selfie of this person, [context], looking into the lens.`、`A natural third-person photo of this person, [context], natural composition, not a selfie.`；允许既有 timeline 融合，不用逐字正则限制自然语言。
 - 拍摄主体为助手/绑定人物。明确自拍不得被 timeline 改成第三人称；普通聊天由当前 Agent 按 skill 组装，调用方根据任务及绑定资料组装；执行层原样传 prompt。
 - caption 仍是当前会话回复配文，不混入 prompt、不变成生成描述；调用方的发布配文由调用方管理。
-- 保留自然语言分辨率识别及明确 1K/2K/4K；默认 2K。Google 旧路径本来就不指定 aspectRatio，本次保留默认行为。
+- 保留自然语言分辨率识别及明确 1K/2K/4K；仅当所选模型支持 resolution 时默认 2K。Google 旧路径本来就不指定 aspectRatio，本次保留默认行为。
 
 ### 可选 timeline
 
@@ -191,7 +190,7 @@ scripts/chat.ts 复用 plugin 模块的参数、Agent 与参考图校验，通�
 | 三种拍摄模式、caption、timeline | 保留；SKILL、中英文 README、timeline 同步更新，保留可选 SOUL 片段 |
 | 身份 Markdown 写法、主图/混合/排序/去重 | 保留；聊天与同宿主 plugin 使用共享实现 |
 | 授权根、20 MiB、文件签名/替换检查 | 保留；不能以原生 SDK 存在为由删除 |
-| 1K/2K/4K、默认未指定比例 | 保留；下一版默认 2K |
+| 1K/2K/4K、默认未指定比例 | 保留；模型支持 resolution 时默认 2K，否则不传 |
 | 普通自拍显式持久副本 | 用户最新明确取消；不实现 CLI 保存分支 |
 | 发布白名单、SHA256、安装与同步、可选 SOUL | 保留；不覆盖用户人格文件，不夹带参考图/素材/凭据 |
 | fal/laozhang skill SDK、自有重试、旧 sender | 按已确认决定退役，移除运行依赖；宿主原生 fal 等可 edit 模型可通过 config.model 选用 |

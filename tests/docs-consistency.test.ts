@@ -141,7 +141,9 @@ describe("selfie/timeline documentation contract", () => {
     const readmeCn = readRepoFile("README_CN.md");
     const plugin = readRepoFile("references", "plugin-integration.md");
     expect(skill).toContain("using the returned toolInput exactly");
+    expect(skill).toContain("Do not swap the model or use message send");
     expect(skill).not.toContain("explicit Google model");
+    expect(skill).not.toContain("Do not swap the model, use message send");
     expect(skill).not.toContain("Do not use message send, another provider");
     expect(readme).not.toContain("Google's official native image provider");
     expect(readmeCn).not.toContain("Stella 用 Google 官方原生图片生成");

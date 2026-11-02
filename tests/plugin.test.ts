@@ -149,7 +149,7 @@ describe("plugin native in-memory integration", () => {
     expect(await call()).toMatchObject({ ok: true });
     expect(generate.mock.calls[0][0].modelOverride).toBe("google/gemini-3.1-flash-image");
   });
-  it("omits default resolution for OpenAI and accepts an unprefixed or full model id", async () => {
+  it("omits default resolution when OpenAI declares supportsResolution false", async () => {
     setProviders({ id: "openai", models: ["gpt-image-2"], capabilities: {
       edit: { enabled: true, maxInputImages: 5, supportsResolution: false } } });
     options({ model: "openai/gpt-image-2" });
@@ -157,6 +157,46 @@ describe("plugin native in-memory integration", () => {
     expect(await call()).toMatchObject({ ok: true });
     expect(generate.mock.calls[0][0].modelOverride).toBe("openai/gpt-image-2");
     expect(generate.mock.calls[0][0]).not.toHaveProperty("resolution");
+  });
+  it("omits default resolution when the inventory does not declare resolution support", async () => {
+    setProviders({ id: "openai", models: ["gpt-image-2"], capabilities: { edit: { enabled: true, maxInputImages: 5 } } });
+    options({ model: "openai/gpt-image-2" });
+    generate.mockResolvedValue({ images: [{ buffer: png, mimeType: "image/png" }], provider: "openai", model: "gpt-image-2", ignoredOverrides: [] });
+    expect(await call()).toMatchObject({ ok: true });
+    expect(generate.mock.calls[0][0]).not.toHaveProperty("resolution");
+  });
+  it("accepts a host inventory that lists the full provider/model ref", async () => {
+    setProviders({ id: "openai", models: ["openai/gpt-image-2"], capabilities: {
+      edit: { enabled: true, maxInputImages: 5, supportsResolution: false } } });
+    options({ model: "openai/gpt-image-2" });
+    generate.mockResolvedValue({ images: [{ buffer: png, mimeType: "image/png" }],
+      provider: "openai", model: "openai/gpt-image-2", ignoredOverrides: [] });
+    expect(await call()).toMatchObject({ ok: true });
+    expect(generate.mock.calls[0][0].modelOverride).toBe("openai/gpt-image-2");
+  });
+  it("ignores leftover Provider=gemini and still uses config.model", async () => {
+    vi.stubEnv("Provider", "gemini");
+    expect(await call()).toMatchObject({ ok: true });
+    expect(generate.mock.calls[0][0].modelOverride).toBe("google/gemini-3-pro-image");
+  });
+  it("rejects leftover Provider=fal even when config.model is a native ref", async () => {
+    vi.stubEnv("Provider", "fal");
+    options({ model: "google/gemini-3-pro-image" });
+    expect(await call()).toMatchObject({ ok: false, error: { code: "CONFIG_INVALID" } });
+    expect(generate).not.toHaveBeenCalled();
+  });
+  it("allows AvatarMaxRefs above the old Google cap when the host edit limit is higher", async () => {
+    setProviders({ id: "fal", models: ["model"], capabilities: { edit: { enabled: true, maxInputImages: 10 } } });
+    options({ model: "fal/model", AvatarMaxRefs: 6 });
+    generate.mockResolvedValue({ images: [{ buffer: png, mimeType: "image/png" }], provider: "fal", model: "model", ignoredOverrides: [] });
+    expect(await call()).toMatchObject({ ok: true });
+  });
+  it("rejects an explicit aspect ratio the selected model cannot apply", async () => {
+    setProviders({ id: "openai", models: ["gpt-image-2"], capabilities: {
+      edit: { enabled: true, maxInputImages: 5, supportsResolution: false } } });
+    options({ model: "openai/gpt-image-2" });
+    expect(await call({ ...request, aspectRatio: "3:4" })).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
+    expect(generate).not.toHaveBeenCalled();
   });
   it("selects OpenRouter by the first provider/model slash", async () => {
     setProviders({ id: "openrouter", models: ["google/gemini-3.1-flash-image-preview"], capabilities: {

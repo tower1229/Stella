@@ -121,7 +121,7 @@ Use the same supported Node executable for release. If the required Node/CLI/con
 
 ### Step 5: Call Native Image Generation Once
 
-Call `image_generate` once using the returned toolInput exactly: the prepared model, full prompt, count=1, prepared images, and any resolution or aspectRatio the helper included. Do not swap the model, use message send, an SDK, CLI generation, or a second call to regenerate.
+Call `image_generate` once using the returned toolInput exactly: the prepared model, full prompt, count=1, prepared images, and any resolution or aspectRatio the helper included. Do not swap the model or use message send, an SDK, CLI generation, or a second call to regenerate.
 
 In the supported host, image_generate loads references before it returns its async task ID. After that invocation returns (including an error), release only this request's reference snapshots in the initiating turn:
 

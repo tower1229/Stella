@@ -115,15 +115,23 @@ function parseModelRef(model: unknown): { model: string; providerId: string; mod
   }
   return { model, providerId: model.slice(0, slash), modelId: model.slice(slash + 1) };
 }
+function geometrySupported(
+  declared: boolean | undefined, allowed: readonly string[] | undefined, value: string,
+): boolean {
+  if (declared === false) return false;
+  if (allowed) return allowed.includes(value);
+  return declared === true;
+}
 function supportsResolution(provider: ImageProvider, resolution: string): boolean {
-  if (provider.capabilities.edit.supportsResolution === false) return false;
-  const allowed = provider.capabilities.geometry?.resolutions;
-  return !allowed || allowed.includes(resolution);
+  return geometrySupported(
+    provider.capabilities.edit.supportsResolution, provider.capabilities.geometry?.resolutions, resolution);
 }
 function supportsAspectRatio(provider: ImageProvider, aspectRatio: string): boolean {
-  if (provider.capabilities.edit.supportsAspectRatio === false) return false;
-  const allowed = provider.capabilities.geometry?.aspectRatios;
-  return !allowed || allowed.includes(aspectRatio);
+  return geometrySupported(
+    provider.capabilities.edit.supportsAspectRatio, provider.capabilities.geometry?.aspectRatios, aspectRatio);
+}
+function modelAccepted(models: readonly string[] | undefined, modelId: string, fullRef: string): boolean {
+  return !!models && (models.includes(modelId) || models.includes(fullRef));
 }
 function settings(config: unknown, workspace: string) {
   const cfg = object(config);
@@ -185,7 +193,7 @@ export function prepareImageRequest<C>(
     const provider = api.runtime.imageGeneration.listProviders({ config: api.config }).find(p => p.id === config.providerId);
     const maxInputImages = provider?.capabilities.edit.maxInputImages;
     const maxRefs = maxInputImages !== undefined ? Math.min(16, maxInputImages) : 5;
-    if (!provider?.capabilities.edit.enabled || !provider.models?.includes(config.modelId) || config.max > maxRefs) {
+    if (!provider?.capabilities.edit.enabled || !modelAccepted(provider.models, config.modelId, config.model) || config.max > maxRefs) {
       throw new InputError("CONFIG_INVALID", "The selected native image model or reference count is unsupported by this host.");
     }
     if ((request.resolution !== undefined && !supportsResolution(provider, request.resolution)) ||
@@ -227,10 +235,8 @@ export async function generateForPlugin<C>(
     generationOutcome = "unknown";
     const result = await api.runtime.imageGeneration.generate(params);
     generationOutcome = "succeeded";
-    const slash = params.modelOverride.indexOf("/");
-    const providerId = params.modelOverride.slice(0, slash);
-    const modelId = params.modelOverride.slice(slash + 1);
-    if (result.provider !== providerId || (result.model !== modelId && result.model !== params.modelOverride) ||
+    const { providerId, modelId, model } = parseModelRef(params.modelOverride);
+    if (result.provider !== providerId || !modelAccepted([result.model], modelId, model) ||
         result.ignoredOverrides.length > 0 || result.images.length !== 1 || !Buffer.isBuffer(result.images[0].buffer)) {
       throw new InputError("OUTPUT_INVALID", "The native result did not satisfy the single-image request.");
     }
